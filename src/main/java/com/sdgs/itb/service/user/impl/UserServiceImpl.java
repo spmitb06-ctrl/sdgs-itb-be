@@ -28,7 +28,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
-    private final EmailService emailService;
+//    private final EmailService emailService;
 
     @Value("${frontend.url}")
     private String frontendUrl;
@@ -47,7 +47,7 @@ public class UserServiceImpl implements UserService {
         user.setVerificationTokenExpiry(OffsetDateTime.now().plusHours(24));
 
         String link = frontendUrl + "/verify?verificationToken=" + token;
-        emailService.sendVerificationEmail(req.getEmail(), link);
+//        emailService.sendVerificationEmail(req.getEmail(), link);
 
         return userRepository.save(user);
     }
