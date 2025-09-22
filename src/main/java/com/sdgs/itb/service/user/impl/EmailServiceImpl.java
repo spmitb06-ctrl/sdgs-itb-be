@@ -44,9 +44,10 @@ public class EmailServiceImpl implements EmailService {
     }
 
     public void sendVerificationEmail(String to, String verificationLink) throws MessagingException {
-        String subject = "Complete Your Registration";
-        String content = loadEmailTemplate("verification-email.html", verificationLink);
-        sendHtml(to, subject, content);
+//        String subject = "Complete Your Registration";
+//        String content = loadEmailTemplate("verification-email.html", verificationLink);
+//        sendHtml(to, subject, content);
+        System.out.println("Send verification email to: " + to + " link: " + verificationLink);
     }
 
     public void sendInvoiceEmail(String to, String subject, String body, byte[] pdfAttachment, String filename) throws MessagingException {
