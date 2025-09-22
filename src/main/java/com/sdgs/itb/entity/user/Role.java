@@ -22,7 +22,7 @@ import java.util.Set;
 public class Role {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "role_id_gen")
-    @SequenceGenerator(name = "role_id_gen", sequenceName = "role_id_seq", schema = "thesis", allocationSize = 1)
+    @SequenceGenerator(name = "role_id_gen", sequenceName = "role_id_seq", schema = "sdgs", allocationSize = 1)
     @Column(name = "role_id", nullable = false)
     private Long id;
 

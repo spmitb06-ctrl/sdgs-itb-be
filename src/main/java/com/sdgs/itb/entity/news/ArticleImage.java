@@ -8,7 +8,7 @@ import java.time.OffsetDateTime;
 import java.util.Objects;
 
 @Entity
-@Table(name = "article_images")
+@Table(name = "article_images", schema = "sdgs")
 @Getter
 @Setter
 @Builder

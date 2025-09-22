@@ -27,7 +27,7 @@ import java.util.Set;
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "user_id_gen")
-    @SequenceGenerator(name = "user_id_gen", sequenceName = "user_id_seq", schema = "thesis", allocationSize = 1)
+    @SequenceGenerator(name = "user_id_gen", sequenceName = "user_id_seq", schema = "sdgs", allocationSize = 1)
     private Long id;
 
     @NotNull(message = "Email is mandatory")
