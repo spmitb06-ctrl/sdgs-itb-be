@@ -13,7 +13,7 @@ import org.springframework.boot.jdbc.DataSourceBuilder;
 @Configuration
 public class DataSourceConfig {
 
-    @Value("${DATABASE_URL:}")
+    @Value("${DATABASE_URL:${RAILWAY_DATABASE_URL:}}")
     private String databaseUrl;
 
     @Value("${POSTGRES_USER:}")
