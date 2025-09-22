@@ -3,7 +3,7 @@ FROM maven:3.9.9-eclipse-temurin-21 AS build
 
 WORKDIR /app
 
-# Copy only pom.xml first to download dependencies (speeds up builds)
+# Copy pom.xml and download dependencies
 COPY pom.xml .
 RUN mvn dependency:go-offline -B
 
@@ -24,11 +24,8 @@ WORKDIR /app
 # Copy the built JAR from build stage
 COPY --from=build /app/app.jar app.jar
 
-# Set environment variables for Spring Boot (Railway will inject them)
-ENV JAVA_OPTS=""
-
 # Expose default Spring Boot port
 EXPOSE 8080
 
 # Run the application
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+ENTRYPOINT ["sh", "-c", "java -jar app.jar"]
