@@ -7,6 +7,8 @@ import com.sdgs.itb.entity.sdgs.Goal;
 import com.sdgs.itb.entity.sdgs.Scholar;
 import com.sdgs.itb.infrastructure.faculty.repository.FacultyRepository;
 import com.sdgs.itb.infrastructure.news.dto.ArticleDTO;
+import com.sdgs.itb.infrastructure.news.dto.ArticleFacultyDTO;
+import com.sdgs.itb.infrastructure.news.dto.ArticleGoalDTO;
 import com.sdgs.itb.infrastructure.news.mapper.ArticleMapper;
 import com.sdgs.itb.infrastructure.news.repository.ArticleCategoryRepository;
 import com.sdgs.itb.infrastructure.news.repository.ArticleImageRepository;
@@ -54,41 +56,54 @@ public class ArticleServiceImpl implements ArticleService {
 
         if (dto.getScholarId() != null) {
             Scholar scholar = scholarRepository.findById(dto.getScholarId())
-                    .orElseThrow(() -> new DataNotFoundException("Scholar Category not found"));
+                    .orElseThrow(() -> new DataNotFoundException("Scholar not found"));
             article.setScholar(scholar);
         }
 
-        repository.saveAndFlush(article);
+        // Save first to generate ID
+        Article savedArticle = repository.saveAndFlush(article);
 
-        List<Faculty> faculties = facultyRepository.findAllById(dto.getFacultyIds());
-        if (faculties.isEmpty()) {
-            throw new DataNotFoundException("No valid faculties found");
-        }
+        // Faculties
+        if (dto.getFacultyIds() != null && !dto.getFacultyIds().isEmpty()) {
+            List<Faculty> faculties = facultyRepository.findAllById(dto.getFacultyIds());
+            if (faculties.isEmpty()) throw new DataNotFoundException("No valid faculties found");
 
-        faculties.forEach(faculty -> faculty.addArticle(article));
-
-        List<Goal> goals = goalRepository.findAllById(dto.getGoalIds());
-        if (goals.isEmpty()) {
-            throw new DataNotFoundException("No valid goals found");
-        }
-
-        goals.forEach(goal -> goal.addArticle(article));
-
-        Article savedArticle = repository.save(article);
-
-        // Save related Cloudinary images if provided
-        if (dto.getImageUrls() != null && !dto.getImageUrls().isEmpty()) {
-            for (String url : dto.getImageUrls()) {
-                ArticleImage image = ArticleImage.builder()
+            for (Faculty faculty : faculties) {  // Regular for-loop
+                ArticleFaculty af = ArticleFaculty.builder()
                         .article(savedArticle)
-                        .imageUrl(url)
+                        .faculty(faculty)
                         .build();
-                articleImageRepository.save(image);
-                savedArticle.getImages().add(image);
+                savedArticle.getArticleFaculties().add(af);
             }
         }
 
-        return ArticleMapper.toDTO(repository.save(article));
+        // Goals
+        if (dto.getGoalIds() != null && !dto.getGoalIds().isEmpty()) {
+            List<Goal> goals = goalRepository.findAllById(dto.getGoalIds());
+            if (goals.isEmpty()) throw new DataNotFoundException("No valid goals found");
+
+            for (Goal goal : goals) { // Regular for-loop
+                ArticleGoal ag = ArticleGoal.builder()
+                        .article(savedArticle)
+                        .goal(goal)
+                        .build();
+                savedArticle.getArticleGoals().add(ag);
+            }
+        }
+
+        // Images
+        if (dto.getImageUrls() != null && !dto.getImageUrls().isEmpty()) {
+            for (String url : dto.getImageUrls()) {
+                ArticleImage img = ArticleImage.builder()
+                        .article(savedArticle)
+                        .imageUrl(url)
+                        .build();
+                savedArticle.getImages().add(img);
+            }
+        }
+
+        savedArticle = repository.save(savedArticle);
+        return ArticleMapper.toDTO(savedArticle);
     }
 
     @Override
@@ -105,23 +120,26 @@ public class ArticleServiceImpl implements ArticleService {
         existing.setTitle(dto.getTitle());
         existing.setContent(dto.getContent());
         existing.setThumbnailUrl(dto.getThumbnailUrl());
+        existing.setSourceUrl(dto.getSourceUrl());
 
+        // Category
         if (dto.getCategoryId() != null) {
             ArticleCategory category = categoryRepository.findById(dto.getCategoryId())
                     .orElseThrow(() -> new DataNotFoundException("Category not found"));
             existing.setArticleCategory(category);
         }
 
+        // Scholar
         if (dto.getScholarId() != null) {
             Scholar scholar = scholarRepository.findById(dto.getScholarId())
-                    .orElseThrow(() -> new DataNotFoundException("Scholar Category not found"));
+                    .orElseThrow(() -> new DataNotFoundException("Scholar not found"));
             existing.setScholar(scholar);
         }
 
-        // Update faculties
+        // Faculties
         existing.getArticleFaculties().clear();
-        if (dto.getArticleFaculties() != null) {
-            dto.getArticleFaculties().forEach(afDto -> {
+        if (dto.getArticleFaculties() != null && !dto.getArticleFaculties().isEmpty()) {
+            for (ArticleFacultyDTO afDto : dto.getArticleFaculties()) {
                 Faculty faculty = facultyRepository.findById(afDto.getFaculties().getId())
                         .orElseThrow(() -> new RuntimeException("Faculty not found"));
                 ArticleFaculty articleFaculty = ArticleFaculty.builder()
@@ -129,13 +147,13 @@ public class ArticleServiceImpl implements ArticleService {
                         .faculty(faculty)
                         .build();
                 existing.getArticleFaculties().add(articleFaculty);
-            });
+            }
         }
 
-        // Update goals
+        // Goals
         existing.getArticleGoals().clear();
-        if (dto.getArticleGoals() != null) {
-            dto.getArticleGoals().forEach(agDto -> {
+        if (dto.getArticleGoals() != null && !dto.getArticleGoals().isEmpty()) {
+            for (ArticleGoalDTO agDto : dto.getArticleGoals()) {
                 Goal goal = goalRepository.findById(agDto.getGoals().getId())
                         .orElseThrow(() -> new RuntimeException("Goal not found"));
                 ArticleGoal articleGoal = ArticleGoal.builder()
@@ -143,20 +161,19 @@ public class ArticleServiceImpl implements ArticleService {
                         .goal(goal)
                         .build();
                 existing.getArticleGoals().add(articleGoal);
-            });
+            }
         }
 
-        // Update images
+        // Images
         existing.getImages().clear();
-        if (dto.getImageUrls() != null) {
-            dto.getImageUrls().forEach(url ->
-                    existing.getImages().add(
-                            com.sdgs.itb.entity.news.ArticleImage.builder()
-                                    .imageUrl(url)
-                                    .article(existing)
-                                    .build()
-                    )
-            );
+        if (dto.getImageUrls() != null && !dto.getImageUrls().isEmpty()) {
+            for (String url : dto.getImageUrls()) {
+                ArticleImage img = ArticleImage.builder()
+                        .article(existing)
+                        .imageUrl(url)
+                        .build();
+                existing.getImages().add(img);
+            }
         }
 
         return ArticleMapper.toDTO(repository.save(existing));

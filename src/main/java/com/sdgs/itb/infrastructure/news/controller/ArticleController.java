@@ -117,7 +117,7 @@ public class ArticleController {
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "DESC") String sortDir,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "12") int size
     ) {
         List<Long> goalIdList = goalIds != null && !goalIds.isEmpty()
                 ? Arrays.stream(goalIds.split(",")).map(Long::parseLong).toList()

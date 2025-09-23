@@ -1,8 +1,6 @@
 package com.sdgs.itb.infrastructure.news.seed;
 
-import com.sdgs.itb.entity.faculty.Faculty;
 import com.sdgs.itb.entity.news.ArticleCategory;
-import com.sdgs.itb.infrastructure.faculty.repository.FacultyRepository;
 import com.sdgs.itb.infrastructure.news.repository.ArticleCategoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
