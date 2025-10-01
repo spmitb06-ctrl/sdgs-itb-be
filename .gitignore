@@ -32,3 +32,12 @@ build/
 ### VS Code ###
 .vscode/
 .env
+
+### Deploy ###
+*.log
+*.tmp
+.idea/
+.vscode/
+.git
+.env
+.DS_Store
