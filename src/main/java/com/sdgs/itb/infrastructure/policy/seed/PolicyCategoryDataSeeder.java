@@ -1,8 +1,6 @@
 package com.sdgs.itb.infrastructure.policy.seed;
 
-import com.sdgs.itb.entity.news.ArticleCategory;
 import com.sdgs.itb.entity.policy.PolicyCategory;
-import com.sdgs.itb.infrastructure.news.repository.ArticleCategoryRepository;
 import com.sdgs.itb.infrastructure.policy.repository.PolicyCategoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
@@ -20,10 +18,9 @@ public class PolicyCategoryDataSeeder implements CommandLineRunner {
     public void run(String... args) {
         if (policyCategoryRepository.count() == 0) {
             List<PolicyCategory> categories = List.of(
-                    PolicyCategory.builder().category("Category A").build(),
-                    PolicyCategory.builder().category("Category B").build(),
-                    PolicyCategory.builder().category("Category C").build(),
-                    PolicyCategory.builder().category("Category D").build()
+                    PolicyCategory.builder().category("ITB").color("#005AAB").build(),
+                    PolicyCategory.builder().category("National").color("#D97706").build(),
+                    PolicyCategory.builder().category("International").color("#16A34A").build()
             );
             policyCategoryRepository.saveAll(categories);
             System.out.println("✅ Policy Category data seeded successfully!");

@@ -20,29 +20,29 @@ public class PolicyCategoryController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<PolicyCategoryDTO>>> getAll() {
-        List<PolicyCategoryDTO> articleCategories = policyCategoryService.getAllCategories();
-        if (articleCategories.isEmpty()) {
+        List<PolicyCategoryDTO> newsCategories = policyCategoryService.getAllCategories();
+        if (newsCategories.isEmpty()) {
             return ApiResponse.success(
                     HttpStatus.OK.value(),
                     "No category found",
-                    articleCategories
+                    newsCategories
             );
         }
         return ApiResponse.success(
                 HttpStatus.OK.value(),
                 "Categories fetched successfully",
-                articleCategories
+                newsCategories
         );
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<PolicyCategoryDTO>> getOne(@PathVariable Long id) {
         try {
-            PolicyCategoryDTO articleCategory = policyCategoryService.getCategory(id);
+            PolicyCategoryDTO newsCategory = policyCategoryService.getCategory(id);
             return ApiResponse.success(
                     HttpStatus.OK.value(),
                     "Category fetched successfully",
-                    articleCategory
+                    newsCategory
             );
         } catch (Exception e) {
             return ApiResponse.failed(

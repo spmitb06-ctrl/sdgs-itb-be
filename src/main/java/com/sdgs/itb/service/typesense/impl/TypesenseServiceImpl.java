@@ -1,8 +1,8 @@
 package com.sdgs.itb.service.typesense.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.sdgs.itb.infrastructure.typesense.dto.TypesenseArticleExportDTO;
-import com.sdgs.itb.service.news.ArticleImportService;
+import com.sdgs.itb.infrastructure.typesense.dto.TypesenseNewsExportDTO;
+import com.sdgs.itb.service.news.NewsImportService;
 import com.sdgs.itb.service.typesense.TypesenseService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +21,7 @@ import java.util.*;
 public class TypesenseServiceImpl implements TypesenseService {
 
     private final RestTemplate restTemplate;
-    private final ArticleImportService articleImportService;
+    private final NewsImportService newsImportService;
 
     @Value("${typesense.apiKey}")
     private String apiKey;
@@ -109,15 +109,29 @@ public class TypesenseServiceImpl implements TypesenseService {
 
                     Map<String, Object> doc = (Map<String, Object>) hit.get("document");
 
-                    TypesenseArticleExportDTO dto = new TypesenseArticleExportDTO();
-                    dto.setAbstractText((String) doc.get("abstract"));
-                    dto.setTitle((String) doc.get("title"));
-                    dto.setUrl((String) doc.get("slug"));
-                    dto.setSdg((List<String>) doc.get("sdg"));
+                    String abstractText = (String) doc.get("abstract");
+                    String title = (String) doc.get("title");
+                    String slug = (String) doc.get("slug");
+                    List<String> sdg = (List<String>) doc.get("sdg");
+
+                    // ✅ Skip if any field is null or empty
+                    if (abstractText == null || abstractText.trim().isEmpty()
+                            || title == null || title.trim().isEmpty()
+                            || slug == null || slug.trim().isEmpty()
+                            || sdg == null || sdg.isEmpty()) {
+                        continue;
+                    }
+
+                    TypesenseNewsExportDTO dto = new TypesenseNewsExportDTO();
+                    dto.setAbstractText(abstractText);
+                    dto.setTitle(title);
+                    dto.setUrl(slug);
+                    dto.setSdg(sdg);
+                    dto.setImage("/sdgs/research.jpg");
                     dto.set_ts(((Number) doc.getOrDefault("_ts", 0L)).longValue());
                     dto.setScholarName(collection);
 
-                    articleImportService.importFromTypesense(dto);
+                    newsImportService.importFromTypesense(dto);
                     importedCount++;
                 }
 
@@ -134,6 +148,7 @@ public class TypesenseServiceImpl implements TypesenseService {
         }
     }
 
+
     @Override
     public void streamExport(String collection, HttpServletResponse response) {
         try {
@@ -149,7 +164,8 @@ public class TypesenseServiceImpl implements TypesenseService {
             OutputStream out = response.getOutputStream();
 
             while (hasMore) {
-                URI uri = new URI(url + "?q=*&per_page=" + perPage + "&page=" + page + "&include_fields=abstract,sdg,title,url,_ts");
+//                URI uri = new URI(url + "?q=*&per_page=" + perPage + "&page=" + page + "&include_fields=abstract,sdg,title,url,_ts");
+                URI uri = new URI(url + "?q=*&per_page=" + perPage + "&page=" + page);
 
                 HttpHeaders headers = new HttpHeaders();
                 headers.set("X-TYPESENSE-API-KEY", apiKey);

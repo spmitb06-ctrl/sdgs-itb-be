@@ -24,9 +24,6 @@ public class RegisterUserDTO {
     @NotBlank(message = "Role is required")
     private Set<String> roles;
 
-    @NotBlank(message = "Faculty is required")
-    private String faculty;
-
-    @NotBlank(message = "Department is required")
-    private String department;
+    @NotBlank(message = "Unit is required")
+    private String unit;
 }

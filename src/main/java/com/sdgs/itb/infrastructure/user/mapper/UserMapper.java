@@ -7,14 +7,24 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 public class UserMapper {
+    public static User toEntity(UserDTO dto) {
+        User user = new User();
+        user.setName(dto.getName());
+        user.setEmail(dto.getEmail());
+
+        return user;
+    }
 
     public static UserDTO toUserDTO(User user) {
         UserDTO dto = new UserDTO();
         dto.setId(user.getId());
         dto.setEmail(user.getEmail());
         dto.setName(user.getName());
-        dto.setFaculty(user.getFaculty());
-        dto.setDepartment(user.getDepartment());
+
+        if (user.getUnit() != null) {
+            dto.setUnitId(user.getUnit().getId());
+            dto.setUnitName(user.getUnit().getName());
+        }
 
         Set<String> roles = user.getRoles()
                 .stream()

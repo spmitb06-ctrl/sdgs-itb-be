@@ -2,6 +2,7 @@ package com.sdgs.itb.entity.user;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.sdgs.itb.entity.unit.Unit;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotNull;
@@ -27,7 +28,7 @@ import java.util.Set;
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "user_id_gen")
-    @SequenceGenerator(name = "user_id_gen", sequenceName = "user_id_seq", schema = "sdgs", allocationSize = 1)
+    @SequenceGenerator(name = "user_id_gen", sequenceName = "user_id_seq", allocationSize = 1)
     private Long id;
 
     @NotNull(message = "Email is mandatory")
@@ -43,21 +44,6 @@ public class User {
     @Column(length = 100)
     private String name;
 
-    @Column
-    private String university;
-
-    @Column
-    private String faculty;
-
-    @Column
-    private String department;
-
-    @Column
-    private String address;
-
-    @Column(name = "phone_number")
-    private String phoneNumber;
-
     @Column(name = "email_verified", nullable = false)
     private Boolean emailVerified = false;
 
@@ -66,6 +52,16 @@ public class User {
 
     @Column(name = "verification_token_expiry")
     private OffsetDateTime verificationTokenExpiry;
+
+
+    // Relationships
+    @JsonBackReference
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<UserRole> userRoles = new HashSet<>();
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "unit_id")
+    private Unit unit;
 
     @Transient
     public Set<Role> getRoles() {
@@ -117,10 +113,4 @@ public class User {
     protected void onRemove() {
         deletedAt = OffsetDateTime.now();
     }
-
-    // Relationships
-    @JsonBackReference
-    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<UserRole> userRoles = new HashSet<>();
-
 }

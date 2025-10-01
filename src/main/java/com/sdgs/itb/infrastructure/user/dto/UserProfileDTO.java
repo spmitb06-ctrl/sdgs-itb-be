@@ -12,7 +12,7 @@ public class UserProfileDTO {
     private String email;
     private String name;
     private Set<String> roles;
-    private String faculty;
+    private String unit;
     private String department;
 
     public static UserProfileDTO fromEntity(User user) {

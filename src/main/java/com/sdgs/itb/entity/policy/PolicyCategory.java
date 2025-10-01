@@ -26,6 +26,9 @@ public class PolicyCategory {
     @Column
     private String category;
 
+    @Column
+    private String color;
+
     @Column(name = "deleted_at")
     private OffsetDateTime deletedAt;
 

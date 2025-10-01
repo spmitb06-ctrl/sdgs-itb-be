@@ -10,6 +10,7 @@ public class PolicyMapper {
         policy.setDescription(dto.getDescription());
         policy.setFileUrl(dto.getFileUrl());
         policy.setYear(dto.getYear());
+        policy.setImageUrl(dto.getImageUrl());
 
         return policy;
     }
@@ -21,10 +22,12 @@ public class PolicyMapper {
         dto.setDescription(policy.getDescription());
         dto.setFileUrl(policy.getFileUrl());
         dto.setYear(policy.getYear());
+        dto.setImageUrl(policy.getImageUrl());
 
         if (policy.getPolicyCategory() != null) {
             dto.setCategoryId(policy.getPolicyCategory().getId());
             dto.setCategoryName(policy.getPolicyCategory().getCategory());
+            dto.setCategoryColor(policy.getPolicyCategory().getColor());
         }
 
         return dto;

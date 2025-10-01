@@ -34,10 +34,29 @@ public class PolicyServiceImpl implements PolicyService {
             PolicyCategory category = categoryRepository.findById(dto.getCategoryId())
                     .orElseThrow(() -> new DataNotFoundException("Category not found"));
             policy.setPolicyCategory(category);
+
+            String categoryName = category.getCategory();
+            String imageUrl;
+
+            if ("ITB".equalsIgnoreCase(categoryName)) {
+                imageUrl = "/policy/ITB.jpeg";
+            } else if ("National".equalsIgnoreCase(categoryName)) {
+                imageUrl = "/policy/National.jpg";
+            } else if ("International".equalsIgnoreCase(categoryName)) {
+                imageUrl = "/policy/International.jpg";
+            } else {
+                imageUrl = "/policy/Policy.jpg";
+            }
+
+            policy.setImageUrl(imageUrl);
+        } else {
+            // If no category, fallback image
+            policy.setImageUrl("/policy/Policy.jpg");
         }
 
         return PolicyMapper.toDTO(policyRepository.save(policy));
     }
+
 
     @Override
     public PolicyDTO updatePolicy(Long id, PolicyDTO dto) {
@@ -48,6 +67,24 @@ public class PolicyServiceImpl implements PolicyService {
         existing.setDescription(dto.getDescription());
         existing.setFileUrl(dto.getFileUrl());
         existing.setYear(dto.getYear());
+
+        PolicyCategory category = categoryRepository.findById(dto.getCategoryId())
+                .orElseThrow(() -> new DataNotFoundException("Category not found"));
+
+        String categoryName = category.getCategory();
+        String imageUrl;
+
+        if ("ITB".equalsIgnoreCase(categoryName)) {
+            imageUrl = "/policy/ITB.jpeg";
+        } else if ("National".equalsIgnoreCase(categoryName)) {
+            imageUrl = "/policy/National.jpg";
+        } else if ("International".equalsIgnoreCase(categoryName)) {
+            imageUrl = "/policy/International.jpg";
+        } else {
+            imageUrl = "/policy/Policy.jpg";
+        }
+
+        existing.setImageUrl(imageUrl);
 
         return PolicyMapper.toDTO(policyRepository.save(existing));
     }

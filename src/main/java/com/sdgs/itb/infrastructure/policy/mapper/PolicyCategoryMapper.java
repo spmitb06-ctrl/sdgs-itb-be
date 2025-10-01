@@ -7,6 +7,7 @@ public class PolicyCategoryMapper {
     public static PolicyCategory toEntity(PolicyCategoryDTO dto) {
         PolicyCategory policyCategory = new PolicyCategory();
         policyCategory.setCategory(dto.getCategory());
+        policyCategory.setColor(dto.getColor());
 
         return policyCategory;
     }
@@ -15,6 +16,7 @@ public class PolicyCategoryMapper {
         return PolicyCategoryDTO.builder()
                 .id(policyCategory.getId())
                 .category(policyCategory.getCategory())
+                .color((policyCategory.getColor()))
                 .build();
     }
 }

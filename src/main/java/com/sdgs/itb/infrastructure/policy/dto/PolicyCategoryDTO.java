@@ -12,5 +12,6 @@ import lombok.NoArgsConstructor;
 public class PolicyCategoryDTO {
     private Long id;
     private String category;
+    private String color;
 }
 

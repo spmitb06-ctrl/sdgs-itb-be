@@ -22,7 +22,7 @@ public class TypesenseController {
 
     private final TypesenseService typesenseService;
 
-    private static final String[] TABLES = {"paper", "project", "patent", "outreach", "thesis"};
+    private static final String[] TABLES = {"paper", "project", "patent", "outreach", "thesis", "profile", "organization"};
 
     private static final String[] SDGS = {
             "GOAL 1: No Poverty",

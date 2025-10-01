@@ -13,14 +13,25 @@ public class DataInitializer {
     CommandLineRunner initRoles(RoleRepository roleRepository) {
         return args -> {
             if (roleRepository.count() == 0) {
+                Role adminDevRole = new Role();
+                adminDevRole.setName(RoleType.ADMIN_DEV);
+                roleRepository.save(adminDevRole);
+
+                Role adminWCURole = new Role();
+                adminWCURole.setName(RoleType.ADMIN_WCU);
+                roleRepository.save(adminWCURole);
+
                 Role adminWebRole = new Role();
                 adminWebRole.setName(RoleType.ADMIN_WEB);
                 roleRepository.save(adminWebRole);
 
-                Role adminFacultyRole = new Role();
-                adminFacultyRole.setName(RoleType.ADMIN_FACULTY);
-                roleRepository.save(adminFacultyRole);
+                Role adminUnitRole = new Role();
+                adminUnitRole.setName(RoleType.ADMIN_UNIT);
+                roleRepository.save(adminUnitRole);
 
+                Role adminInternalRole = new Role();
+                adminInternalRole.setName(RoleType.ADMIN_INTERNAL);
+                roleRepository.save(adminInternalRole);
             }
         };
     }

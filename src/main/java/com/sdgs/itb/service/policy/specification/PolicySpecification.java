@@ -8,7 +8,8 @@ import java.util.List;
 public class PolicySpecification {
 
     public static Specification<Policy> notDeleted() {
-        return (root, query, cb) -> cb.isNull(root.get("deletedAt"));
+        return (root, query, cb) ->
+                cb.isNull(root.get("deletedAt"));
     }
 
     public static Specification<Policy> hasTitle(String title) {
