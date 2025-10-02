@@ -6,7 +6,7 @@ WORKDIR /app
 
 # 1. Copy only pom.xml and download dependencies
 COPY pom.xml .
-RUN mvn clean install -DskipTests -B
+RUN mvn dependency:go-offline -B
 
 # 2. Copy the source code
 COPY src ./src
