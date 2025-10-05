@@ -3,6 +3,7 @@ package com.sdgs.itb.entity.unit;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.sdgs.itb.entity.news.News;
+import com.sdgs.itb.entity.news.NewsCategory;
 import com.sdgs.itb.entity.news.NewsUnit;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
@@ -27,6 +28,9 @@ public class Unit {
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "unit_id_gen")
     @SequenceGenerator(name = "unit_id_gen", sequenceName = "unit_id_seq", schema = "sdgs", allocationSize = 1)
     private Long id;
+
+    @Column(name = "organization_id")
+    private Long organizationId;
 
     @Column(nullable = false, unique = true)
     private String name;
@@ -65,9 +69,13 @@ public class Unit {
     @OneToMany(mappedBy = "unit", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<NewsUnit> newsUnits = new HashSet<>();
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "unit_type_id")
+    private UnitType unitType;
+
     @JsonIgnore
     @Transient
-    public Set<News> getNewss() {
+    public Set<News> getNews() {
         Set<News> news = new HashSet<>();
         for (NewsUnit newsUnit : newsUnits) {
             news.add(newsUnit.getNews());
