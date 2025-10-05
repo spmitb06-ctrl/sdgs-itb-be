@@ -84,6 +84,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/report-categories").permitAll()
                         .requestMatchers("/api/v1/report-categories/**").permitAll()
                         .requestMatchers("/api/v1/units/**").permitAll()
+                        .requestMatchers("/api/v1/unit-type").permitAll()
+                        .requestMatchers("/api/v1/unit-type/**").permitAll()
                         .requestMatchers("/api/v1/goals/**").permitAll()
                         .requestMatchers("/api/v1/scholars").permitAll()
                         .requestMatchers("/api/v1/scholars/**").permitAll()

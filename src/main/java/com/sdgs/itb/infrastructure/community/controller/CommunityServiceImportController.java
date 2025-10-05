@@ -14,7 +14,7 @@ public class CommunityServiceImportController {
 
     @PostMapping("/import/sample")
     public ResponseEntity<String> importSample() {
-        importService.importSample(10);
+        importService.importSample(20);
         return ResponseEntity.ok("Imported sample Community Service records");
     }
 

@@ -1,19 +1,22 @@
 package com.sdgs.itb.service.community.impl;
 
+import com.sdgs.itb.common.exceptions.DataNotFoundException;
 import com.sdgs.itb.entity.news.News;
 import com.sdgs.itb.entity.news.NewsCategory;
 import com.sdgs.itb.entity.goal.Goal;
+import com.sdgs.itb.entity.news.NewsUnit;
+import com.sdgs.itb.entity.unit.Unit;
 import com.sdgs.itb.infrastructure.news.repository.NewsCategoryRepository;
 import com.sdgs.itb.infrastructure.news.repository.NewsRepository;
 import com.sdgs.itb.infrastructure.goal.repository.GoalRepository;
 import com.sdgs.itb.infrastructure.community.dto.CommunityServiceImportDTO;
+import com.sdgs.itb.infrastructure.unit.repository.UnitRepository;
 import com.sdgs.itb.service.community.CommunityServiceImportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -29,6 +32,7 @@ public class CommunityServiceImportServiceImpl implements CommunityServiceImport
     private final NewsRepository newsRepository;
     private final NewsCategoryRepository newsCategoryRepository;
     private final GoalRepository goalRepository;
+    private final UnitRepository unitRepository;
 
     private final RestTemplate restTemplate = new RestTemplate();
 
@@ -119,20 +123,34 @@ public class CommunityServiceImportServiceImpl implements CommunityServiceImport
         String content = (String) item.get("contex");
         String image = (String) item.get("url_image");
         String createdDate = (String) item.get("created_date");
+        String goalsRaw = (String) item.get("goals");
+
+        // Skip if any mandatory field is null
+        if (title == null || content == null || image == null || createdDate == null) {
+            return null; // will be ignored in importFromAPI
+        }
 
         // Build URL slug
         String urlSlug = title.toLowerCase()
-                .replaceAll("[^a-z0-9\\s-]", "")
+                .replaceAll("[^a-z0-9\\s]", "")
                 .replaceAll("\\s+", "_");
         String sourceUrl = "https://pengabdian.dpmk.itb.ac.id/information/" + urlSlug;
 
-        // ✅ Extract SDGs → store only numbers
+        // Extract SDGs → store only numbers
         List<String> sdgs = new ArrayList<>();
-        Pattern pattern = Pattern.compile("#SDG(\\d{1,2})");
-        Matcher matcher = pattern.matcher(content);
-        while (matcher.find()) {
-            String sdgNum = matcher.group(1); // capture only number
-            sdgs.add(sdgNum);
+        String sdgSource = goalsRaw != null && !goalsRaw.isBlank() ? goalsRaw : content;
+
+        if (sdgSource != null) {
+            Pattern pattern = Pattern.compile("#SDG(\\d{1,2})");
+            Matcher matcher = pattern.matcher(sdgSource);
+            while (matcher.find()) {
+                sdgs.add(matcher.group(1)); // capture only number
+            }
+        }
+
+        // Skip if both goalsRaw is null AND no SDGs found in content
+        if ((goalsRaw == null || goalsRaw.isBlank()) && sdgs.isEmpty()) {
+            return null;
         }
 
         CommunityServiceImportDTO dto = new CommunityServiceImportDTO();
@@ -153,7 +171,7 @@ public class CommunityServiceImportServiceImpl implements CommunityServiceImport
         Optional<News> existingOpt = newsRepository.findBySourceUrl(dto.getSourceUrl());
         News news = existingOpt.orElseGet(News::new);
 
-        // 1️⃣ Set basic fields
+        // Set basic fields
         news.setTitle(dto.getTitle());
         news.setContent(dto.getContent());
         news.setThumbnailUrl(dto.getImage());
@@ -174,10 +192,16 @@ public class CommunityServiceImportServiceImpl implements CommunityServiceImport
             news.setUpdatedAt(OffsetDateTime.now());
         }
 
-        // 2️⃣ Save first to generate ID (required for Many-to-Many)
+        // Save first to generate ID (required for Many-to-Many)
         News savedNews = newsRepository.save(news);
 
-        // 3️⃣ Match goals by number instead of full title
+        Unit unit = unitRepository.findByName("Other")
+                .orElseThrow(() -> new DataNotFoundException("Unit with name 'Other' not found!"));
+
+        NewsUnit af = NewsUnit.builder().news(savedNews).unit(unit).build();
+        savedNews.getNewsUnits().add(af);
+
+        // Match goals by number instead of full title
         dto.getSdgs().stream()
                 .distinct()
                 .forEach(sdgNum -> {
@@ -188,7 +212,7 @@ public class CommunityServiceImportServiceImpl implements CommunityServiceImport
                     if (goal != null) savedNews.addGoal(goal);
                 });
 
-        // 4️⃣ Save again to persist goals
+        // Save again to persist goals
         newsRepository.save(savedNews);
     }
 }
