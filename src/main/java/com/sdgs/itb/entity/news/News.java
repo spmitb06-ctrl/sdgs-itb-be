@@ -26,7 +26,7 @@ public class News {
     @SequenceGenerator(name = "news_id_gen", sequenceName = "news_id_seq", schema = "sdgs", allocationSize = 1)
     private Long id;
 
-    @Column(nullable = false, length = 250)
+    @Column(nullable = false)
     private String title;
 
     @Column(columnDefinition = "TEXT")
