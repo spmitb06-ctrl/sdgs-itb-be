@@ -7,10 +7,16 @@ import lombok.*;
 import org.hibernate.annotations.ColumnDefault;
 
 import java.time.OffsetDateTime;
-import java.util.*;
+import java.util.Objects;
 
 @Entity
-@Table(name = "news_units", schema = "sdgs")
+@Table(
+        name = "news_units",
+        schema = "sdgs",
+        uniqueConstraints = {
+                @UniqueConstraint(columnNames = {"news_id", "unit_id"})
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -20,7 +26,12 @@ public class NewsUnit {
 
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "news_unit_id_gen")
-    @SequenceGenerator(name = "news_unit_id_gen", sequenceName = "news_unit_id_seq", schema = "sdgs", allocationSize = 1)
+    @SequenceGenerator(
+            name = "news_unit_id_gen",
+            sequenceName = "news_unit_id_seq",
+            schema = "sdgs",
+            allocationSize = 1
+    )
     private Long id;
 
     @Column(name = "deleted_at")
@@ -53,12 +64,12 @@ public class NewsUnit {
     }
 
     // Relationships
-    @ManyToOne
-    @JoinColumn(name = "news_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "news_id", nullable = false)
     private News news;
 
-    @ManyToOne
-    @JoinColumn(name = "unit_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "unit_id", nullable = false)
     private Unit unit;
 
     @Override
@@ -70,9 +81,10 @@ public class NewsUnit {
             return id.equals(that.id);
         }
 
-        return news != null && news != null &&
-                Objects.equals(news.getId(), that.news.getId()) &&
-                Objects.equals(news.getId(), that.news.getId());
+        return Objects.equals(news != null ? news.getId() : null,
+                that.news != null ? that.news.getId() : null) &&
+                Objects.equals(unit != null ? unit.getId() : null,
+                        that.unit != null ? that.unit.getId() : null);
     }
 
     @Override
@@ -80,11 +92,8 @@ public class NewsUnit {
         return id != null
                 ? id.hashCode()
                 : Objects.hash(
-                news != null ? news.getId() : 0,
-                news != null ? news.getId() : 0
+                news != null ? news.getId() : null,
+                unit != null ? unit.getId() : null
         );
     }
-
 }
-
-

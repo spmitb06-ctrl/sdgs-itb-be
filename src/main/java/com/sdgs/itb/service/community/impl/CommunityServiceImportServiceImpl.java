@@ -1,15 +1,14 @@
 package com.sdgs.itb.service.community.impl;
 
 import com.sdgs.itb.common.exceptions.DataNotFoundException;
+import com.sdgs.itb.entity.goal.Goal;
 import com.sdgs.itb.entity.news.News;
 import com.sdgs.itb.entity.news.NewsCategory;
-import com.sdgs.itb.entity.goal.Goal;
-import com.sdgs.itb.entity.news.NewsUnit;
 import com.sdgs.itb.entity.unit.Unit;
+import com.sdgs.itb.infrastructure.community.dto.CommunityServiceImportDTO;
+import com.sdgs.itb.infrastructure.goal.repository.GoalRepository;
 import com.sdgs.itb.infrastructure.news.repository.NewsCategoryRepository;
 import com.sdgs.itb.infrastructure.news.repository.NewsRepository;
-import com.sdgs.itb.infrastructure.goal.repository.GoalRepository;
-import com.sdgs.itb.infrastructure.community.dto.CommunityServiceImportDTO;
 import com.sdgs.itb.infrastructure.unit.repository.UnitRepository;
 import com.sdgs.itb.service.community.CommunityServiceImportService;
 import lombok.RequiredArgsConstructor;
@@ -39,39 +38,19 @@ public class CommunityServiceImportServiceImpl implements CommunityServiceImport
     private final Map<String, Goal> goalCache = new HashMap<>();
     private final Map<String, NewsCategory> categoryCache = new HashMap<>();
 
-    private static final Map<String, String> SDG_MAP = Map.ofEntries(
-            Map.entry("#SDG1", "GOAL 1: No Poverty"),
-            Map.entry("#SDG2", "GOAL 2 : Zero Hunger"),
-            Map.entry("#SDG3", "GOAL 3: Good Health and Well-being"),
-            Map.entry("#SDG4", "GOAL 4: Quality Education"),
-            Map.entry("#SDG5", "GOAL 5: Gender Equality"),
-            Map.entry("#SDG6", "GOAL 6: Clean Water and Sanitation"),
-            Map.entry("#SDG7", "GOAL 7: Affordable and Clean Energy"),
-            Map.entry("#SDG8", "GOAL 8: Decent Work and Economic"),
-            Map.entry("#SDG9", "GOAL 9: Industry, Innovation and Infrastructure"),
-            Map.entry("#SDG10", "GOAL 10: Reduced Inequality"),
-            Map.entry("#SDG11", "GOAL 11: Sustainable Cities and Communities"),
-            Map.entry("#SDG12", "GOAL 12: Responsible Consumption and Production"),
-            Map.entry("#SDG13", "GOAL 13: Climate Action"),
-            Map.entry("#SDG14", "GOAL 14: Life Below Water"),
-            Map.entry("#SDG15", "GOAL 15: Life on Land"),
-            Map.entry("#SDG16", "GOAL 16: Peace and Justice Strong Institutions"),
-            Map.entry("#SDG17", "GOAL 17: Partnership for the Goal")
-    );
-
     @Override
-    public void importSample(int limit) {
-        importFromAPI(limit);
+    public int importSample(int limit) {
+        return importFromAPI(limit);
     }
 
     @Override
-    public void importAll() {
-        importFromAPI(Integer.MAX_VALUE);
+    public int importAll() {
+        return importFromAPI(Integer.MAX_VALUE);
     }
 
-    private void importFromAPI(int limit) {
+    private int importFromAPI(int limit) {
         try {
-            // Initialize caches
+            // Load caches
             if (goalCache.isEmpty()) {
                 goalRepository.findAll().forEach(goal -> goalCache.put(goal.getTitle().toLowerCase(), goal));
             }
@@ -90,29 +69,42 @@ public class CommunityServiceImportServiceImpl implements CommunityServiceImport
 
             while (importedCount < limit) {
                 URI uri = new URI("https://pengabdian.dpmk.itb.ac.id/api/informations?page=" + page + "&per_page=" + perPage);
-
-                // API response as Map
                 Map<String, Object> response = restTemplate.getForObject(uri, Map.class);
                 if (response == null) break;
 
                 List<Map<String, Object>> items = (List<Map<String, Object>>) response.get("data");
                 if (items == null || items.isEmpty()) break;
 
+                int newRecordsInThisPage = 0;
+
                 for (Map<String, Object> item : items) {
                     if (importedCount >= limit) break;
 
                     CommunityServiceImportDTO dto = mapToDTO(item);
-                    if (dto.getSdgs().isEmpty()) continue;
+                    if (dto == null || dto.getSdgs().isEmpty()) continue;
+
+                    // only import if created_date >= 2024
+                    LocalDateTime created = LocalDateTime.parse(dto.getCreatedDate(),
+                            DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss"));
+                    if (created.getYear() < 2024) continue;
+
+                    // skip duplicates
+                    if (newsRepository.findBySourceUrl(dto.getSourceUrl()).isPresent()) continue;
 
                     importFromDTO(dto);
                     importedCount++;
+                    newRecordsInThisPage++;
                 }
+
+                // ✅ stop early if nothing new
+                if (newRecordsInThisPage == 0) break;
 
                 if (items.size() < perPage) break;
                 page++;
             }
 
             System.out.println("Imported " + importedCount + " Community Service records.");
+            return importedCount;
         } catch (Exception e) {
             throw new RuntimeException("Error importing Community Service: " + e.getMessage(), e);
         }
@@ -125,30 +117,24 @@ public class CommunityServiceImportServiceImpl implements CommunityServiceImport
         String createdDate = (String) item.get("created_date");
         String goalsRaw = (String) item.get("goals");
 
-        // Skip if any mandatory field is null
         if (title == null || content == null || image == null || createdDate == null) {
-            return null; // will be ignored in importFromAPI
+            return null;
         }
 
-        // Build URL slug
         String urlSlug = title.toLowerCase()
                 .replaceAll("[^a-z0-9\\s]", "")
                 .replaceAll("\\s+", "_");
         String sourceUrl = "https://pengabdian.dpmk.itb.ac.id/information/" + urlSlug;
 
-        // Extract SDGs → store only numbers
         List<String> sdgs = new ArrayList<>();
         String sdgSource = goalsRaw != null && !goalsRaw.isBlank() ? goalsRaw : content;
-
         if (sdgSource != null) {
-            Pattern pattern = Pattern.compile("#SDG(\\d{1,2})");
-            Matcher matcher = pattern.matcher(sdgSource);
+            Matcher matcher = Pattern.compile("#SDG(\\d{1,2})").matcher(sdgSource);
             while (matcher.find()) {
-                sdgs.add(matcher.group(1)); // capture only number
+                sdgs.add(matcher.group(1));
             }
         }
 
-        // Skip if both goalsRaw is null AND no SDGs found in content
         if ((goalsRaw == null || goalsRaw.isBlank()) && sdgs.isEmpty()) {
             return null;
         }
@@ -160,7 +146,6 @@ public class CommunityServiceImportServiceImpl implements CommunityServiceImport
         dto.setSourceUrl(sourceUrl);
         dto.setCreatedDate(createdDate);
         dto.setSdgs(sdgs);
-
         return dto;
     }
 
@@ -169,9 +154,12 @@ public class CommunityServiceImportServiceImpl implements CommunityServiceImport
         if (dto.getSourceUrl() == null || dto.getSdgs().isEmpty()) return;
 
         Optional<News> existingOpt = newsRepository.findBySourceUrl(dto.getSourceUrl());
-        News news = existingOpt.orElseGet(News::new);
+        if (existingOpt.isPresent()) {
+            // already exists → skip
+            return;
+        }
 
-        // Set basic fields
+        News news = new News();
         news.setTitle(dto.getTitle());
         news.setContent(dto.getContent());
         news.setThumbnailUrl(dto.getImage());
@@ -181,10 +169,9 @@ public class CommunityServiceImportServiceImpl implements CommunityServiceImport
         news.setNewsCategory(communityCategory);
 
         if (dto.getCreatedDate() != null) {
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss");
-            LocalDateTime localCreated = LocalDateTime.parse(dto.getCreatedDate(), formatter);
+            LocalDateTime localCreated = LocalDateTime.parse(dto.getCreatedDate(),
+                    DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss"));
             OffsetDateTime created = localCreated.atOffset(ZoneOffset.UTC);
-
             news.setCreatedAt(created);
             news.setUpdatedAt(created);
         } else {
@@ -192,16 +179,14 @@ public class CommunityServiceImportServiceImpl implements CommunityServiceImport
             news.setUpdatedAt(OffsetDateTime.now());
         }
 
-        // Save first to generate ID (required for Many-to-Many)
         News savedNews = newsRepository.save(news);
 
+        // Add Unit safely
         Unit unit = unitRepository.findByName("Other")
                 .orElseThrow(() -> new DataNotFoundException("Unit with name 'Other' not found!"));
+        savedNews.addUnit(unit);
 
-        NewsUnit af = NewsUnit.builder().news(savedNews).unit(unit).build();
-        savedNews.getNewsUnits().add(af);
-
-        // Match goals by number instead of full title
+        // Add Goals safely
         dto.getSdgs().stream()
                 .distinct()
                 .forEach(sdgNum -> {
@@ -212,7 +197,6 @@ public class CommunityServiceImportServiceImpl implements CommunityServiceImport
                     if (goal != null) savedNews.addGoal(goal);
                 });
 
-        // Save again to persist goals
         newsRepository.save(savedNews);
     }
 }

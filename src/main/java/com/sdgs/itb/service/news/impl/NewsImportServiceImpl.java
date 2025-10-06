@@ -13,9 +13,7 @@ import com.sdgs.itb.service.news.NewsImportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -77,35 +75,46 @@ public class NewsImportServiceImpl implements NewsImportService {
         // ---- Create new news ----
         News newNews = new News();
         newNews.setTitle(dto.getTitle());
-        newNews.setContent(dto.getAbstractText());
         newNews.setThumbnailUrl(dto.getImage());
+        newNews.setScholarYear(dto.getYear());
 
-        newNews.setCreatedAt(dto.get_ts() != null
-                ? OffsetDateTime.ofInstant(Instant.ofEpochSecond(dto.get_ts()), ZoneOffset.UTC)
+        // ✅ Use dateTime (unified field from Typesense import)
+        newNews.setCreatedAt(dto.getDateTime() != null
+                ? dto.getDateTime()
                 : OffsetDateTime.now());
 
         // ---- Category mapping ----
         String scholarName = dto.getScholarName().toLowerCase();
         NewsCategory category;
-        if (scholarName.equals("project") || scholarName.equals("thesis")) {
+        if (scholarName.equals("project")) {
             category = categoryCache.get("research");
-            if (scholarName.equals("project")) {
-                newNews.setSourceUrl("https://scholar.itb.ac.id/" + "project_detail/" + dto.getUrl());
-            } else {
-                newNews.setSourceUrl("https://scholar.itb.ac.id/" + "thesis_detail/" + dto.getUrl());
-            }
-        } else if (scholarName.equals("paper") || scholarName.equals("patent") || scholarName.equals("outreach")) {
+            newNews.setContent(dto.getAbstractText());
+            newNews.setSourceUrl("https://scholar.itb.ac.id/project_detail/" + dto.getUrl());
+            newNews.setThumbnailUrl("/news/project.jpg");
+        } else if (scholarName.equals("paper") || scholarName.equals("patent") || scholarName.equals("thesis")) {
             category = categoryCache.get("publication");
-            if (scholarName.equals("paper")) {
-                newNews.setSourceUrl("https://scholar.itb.ac.id/" + "paper_detail/" + dto.getUrl());
-            } else if (scholarName.equals("patent")) {
-                newNews.setSourceUrl("https://scholar.itb.ac.id/" + "patent_detail/" + dto.getUrl());
-            } else {
-                newNews.setSourceUrl("https://scholar.itb.ac.id/" + "outreach_detail/" + dto.getUrl());
+            newNews.setContent(dto.getAbstractText());
+            switch (scholarName) {
+                case "paper" -> {
+                    newNews.setSourceUrl("https://scholar.itb.ac.id/paper_detail/" + dto.getUrl());
+                    newNews.setThumbnailUrl("/news/paper.jpeg");
+                }
+                case "patent" -> {
+                    newNews.setSourceUrl("https://scholar.itb.ac.id/patent_detail/" + dto.getUrl());
+                    newNews.setThumbnailUrl("/news/patent.jpg");
+                }
+                case "thesis" -> {
+                    newNews.setSourceUrl("https://scholar.itb.ac.id/thesis_detail/" + dto.getUrl());
+                    newNews.setThumbnailUrl("/news/thesis.jpeg");
+                }
             }
         } else {
-            category = categoryCache.get("general");
+            category = categoryCache.get("community service");
+            newNews.setContent(dto.getAbstractText());
+            newNews.setSourceUrl("https://scholar.itb.ac.id/outreach_detail/" + dto.getUrl());
+            newNews.setThumbnailUrl("/news/outreach.jpg");
         }
+
         if (category == null) {
             throw new IllegalStateException("No matching category found for: " + dto.getScholarName());
         }
@@ -136,7 +145,4 @@ public class NewsImportServiceImpl implements NewsImportService {
 
         return newsRepository.save(savedNews);
     }
-
-
-
 }

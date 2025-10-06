@@ -10,10 +10,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.OutputStream;
 import java.net.URI;
+import java.time.*;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 
 @Service
@@ -34,24 +37,14 @@ public class TypesenseServiceImpl implements TypesenseService {
     @Override
     public int searchCount(String collection, String sdg) {
         String url = baseUrl + "/" + collection + "/documents/search";
-
-        URI uri = UriComponentsBuilder.fromHttpUrl(url)
-                .queryParam("q", "*")
-                .queryParam("filter_by", "sdg:=" + sdg)
-                .build()
-                .encode()
-                .toUri();
+        URI uri = URI.create(url + "?q=*&filter_by=sdg:=" + sdg);
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("X-TYPESENSE-API-KEY", apiKey);
-
         HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
 
         ResponseEntity<Map> response = restTemplate.exchange(
-                uri,
-                HttpMethod.GET,
-                requestEntity,
-                Map.class
+                uri, HttpMethod.GET, requestEntity, Map.class
         );
 
         if (response.getBody() != null && response.getBody().get("found") != null) {
@@ -61,8 +54,9 @@ public class TypesenseServiceImpl implements TypesenseService {
     }
 
     @Override
-    public void importSampleFromTypesense(String collection) {
-        importFromTypesenseInternal(collection, 10);
+    public void importSampleFromTypesense(int limit, String collection) {
+        int safeLimit = (limit > 0) ? limit : 10;
+        importFromTypesenseInternal(collection, safeLimit);
     }
 
     @Override
@@ -70,6 +64,7 @@ public class TypesenseServiceImpl implements TypesenseService {
         importFromTypesenseInternal(collection, Integer.MAX_VALUE);
     }
 
+    @SuppressWarnings("unchecked")
     private void importFromTypesenseInternal(String collection, int importLimit) {
         try {
             String url = baseUrl + "/" + collection + "/documents/search";
@@ -77,20 +72,36 @@ public class TypesenseServiceImpl implements TypesenseService {
             int page = 1;
             int perPage = 200;
             int importedCount = 0;
+            boolean hasMore = true;
 
-            while (importedCount < importLimit) {
-                URI uri = new URI(url + "?q=*&per_page=" + perPage + "&page=" + page +
-                        "&include_fields=abstract,sdg,title,slug,_ts");
+            // cutoff timestamp = 2024-01-01 UTC
+            OffsetDateTime cutoffDate = OffsetDateTime.of(2024, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC);
+
+            // formatter for "start" field in project collection (e.g. "5 January 2024")
+            DateTimeFormatter formatter = new DateTimeFormatterBuilder()
+                    .parseCaseInsensitive()
+                    .appendPattern("d MMMM uuuu")   // 5 January 2024
+                    .optionalStart()
+                    .appendPattern("d MMM uuuu")    // 5 Jan 2024
+                    .optionalEnd()
+                    .toFormatter(Locale.ENGLISH);
+
+            while (importedCount < importLimit && hasMore) {
+                URI uri;
+                if (collection.equals("project")) {
+                    uri = new URI(url + "?q=*&per_page=" + perPage + "&page=" + page +
+                            "&include_fields=abstract,sdg,title,slug,start,year,organization");
+                } else {
+                    uri = new URI(url + "?q=*&per_page=" + perPage + "&page=" + page +
+                            "&include_fields=abstract,sdg,title,slug,_ts,year,organization");
+                }
 
                 HttpHeaders headers = new HttpHeaders();
                 headers.set("X-TYPESENSE-API-KEY", apiKey);
                 HttpEntity<Void> request = new HttpEntity<>(headers);
 
                 ResponseEntity<Map> response = restTemplate.exchange(
-                        uri,
-                        HttpMethod.GET,
-                        request,
-                        Map.class
+                        uri, HttpMethod.GET, request, Map.class
                 );
 
                 if (response.getBody() == null || response.getBody().get("hits") == null) {
@@ -98,23 +109,56 @@ public class TypesenseServiceImpl implements TypesenseService {
                 }
 
                 List<Map<String, Object>> hits = (List<Map<String, Object>>) response.getBody().get("hits");
-                if (hits.isEmpty()) {
-                    break; // reached end
-                }
+                if (hits.isEmpty()) break;
 
                 for (Map<String, Object> hit : hits) {
-                    if (importedCount >= importLimit) {
-                        break;
-                    }
+                    if (importedCount >= importLimit) break;
 
                     Map<String, Object> doc = (Map<String, Object>) hit.get("document");
+                    if (doc == null) continue;
 
                     String abstractText = (String) doc.get("abstract");
                     String title = (String) doc.get("title");
                     String slug = (String) doc.get("slug");
+
+                    Object yearObj = doc.get("year");
+                    String year = (yearObj != null) ? String.valueOf(yearObj) : null;
+
                     List<String> sdg = (List<String>) doc.get("sdg");
 
-                    // ✅ Skip if any field is null or empty
+                    // ✅ Parse datetime
+                    OffsetDateTime dateTime = null;
+                    if (collection.equals("project")) {
+                        String startStr = (String) doc.get("start");
+                        if (startStr == null || startStr.trim().isEmpty()) continue;
+                        try {
+                            LocalDate parsed = LocalDate.parse(startStr.trim(), formatter);
+                            dateTime = parsed.atStartOfDay().atOffset(ZoneOffset.UTC);
+                            if (dateTime.isBefore(cutoffDate)) continue;
+                        } catch (DateTimeParseException e) {
+                            System.out.println("Skipping invalid start date: " + startStr);
+                            continue;
+                        }
+                    } else {
+                        Long ts = ((Number) doc.getOrDefault("_ts", 0L)).longValue();
+                        if (ts == 0L) continue;
+                        dateTime = OffsetDateTime.ofInstant(Instant.ofEpochSecond(ts), ZoneOffset.UTC);
+                        if (dateTime.isBefore(cutoffDate)) continue;
+                    }
+
+                    // ✅ Parse organizations (only <= 12)
+                    List<String> orgStrings = (List<String>) doc.get("organization");
+                    List<Long> organizations = new ArrayList<>();
+                    if (orgStrings != null) {
+                        for (String org : orgStrings) {
+                            try {
+                                long orgId = Long.parseLong(org);
+                                if (orgId <= 12) organizations.add(orgId);
+                            } catch (NumberFormatException ignored) {}
+                        }
+                    }
+
+                    // ✅ Skip invalid entries
                     if (abstractText == null || abstractText.trim().isEmpty()
                             || title == null || title.trim().isEmpty()
                             || slug == null || slug.trim().isEmpty()
@@ -122,32 +166,34 @@ public class TypesenseServiceImpl implements TypesenseService {
                         continue;
                     }
 
+                    // ✅ Build DTO
                     TypesenseNewsExportDTO dto = new TypesenseNewsExportDTO();
                     dto.setAbstractText(abstractText);
                     dto.setTitle(title);
                     dto.setUrl(slug);
                     dto.setSdg(sdg);
-                    dto.setImage("/sdgs/research.jpg");
-                    dto.set_ts(((Number) doc.getOrDefault("_ts", 0L)).longValue());
+                    dto.setDateTime(dateTime);
                     dto.setScholarName(collection);
+                    dto.setYear(year);
+                    dto.setOrganizations(organizations);
 
+                    // ✅ Import via service
                     newsImportService.importFromTypesense(dto);
                     importedCount++;
                 }
 
                 if (hits.size() < perPage) {
-                    break; // no more pages
+                    hasMore = false;
+                } else {
+                    page++;
                 }
-
-                page++;
             }
 
-            System.out.println("Imported " + importedCount + " records from Typesense [" + collection + "]");
+            System.out.println("✅ Imported " + importedCount + " records from Typesense [" + collection + "]");
         } catch (Exception e) {
             throw new RuntimeException("Error while import: " + e.getMessage(), e);
         }
     }
-
 
     @Override
     public void streamExport(String collection, HttpServletResponse response) {
@@ -164,7 +210,6 @@ public class TypesenseServiceImpl implements TypesenseService {
             OutputStream out = response.getOutputStream();
 
             while (hasMore) {
-//                URI uri = new URI(url + "?q=*&per_page=" + perPage + "&page=" + page + "&include_fields=abstract,sdg,title,url,_ts");
                 URI uri = new URI(url + "?q=*&per_page=" + perPage + "&page=" + page);
 
                 HttpHeaders headers = new HttpHeaders();
@@ -172,16 +217,10 @@ public class TypesenseServiceImpl implements TypesenseService {
 
                 HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
 
-                ResponseEntity<Map> resp = restTemplate.exchange(
-                        uri,
-                        HttpMethod.GET,
-                        requestEntity,
-                        Map.class
-                );
+                ResponseEntity<Map> resp = restTemplate.exchange(uri, HttpMethod.GET, requestEntity, Map.class);
 
                 if (resp.getStatusCode().is2xxSuccessful() && resp.getBody() != null) {
                     Map body = resp.getBody();
-
                     List<Map<String, Object>> hits = (List<Map<String, Object>>) body.get("hits");
                     if (hits == null || hits.isEmpty()) {
                         hasMore = false;
@@ -194,7 +233,6 @@ public class TypesenseServiceImpl implements TypesenseService {
                         out.write("\n".getBytes());
                     }
 
-                    // stop if last page
                     int found = (int) body.get("found");
                     if (page * perPage >= found) {
                         hasMore = false;

@@ -21,6 +21,7 @@ public class NewsDTO {
     private String categoryName;
     private Long scholarId;
     private String scholarName;
+    private String scholarYear;
     private List<Long> unitIds;
     private OffsetDateTime createdAt;
 

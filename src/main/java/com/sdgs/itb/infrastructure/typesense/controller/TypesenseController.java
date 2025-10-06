@@ -78,10 +78,15 @@ public class TypesenseController {
 
     @PostMapping("/import/sample")
     public ResponseEntity<ApiResponse<String>> importSampleDirect(
+            @RequestParam(defaultValue = "10") int limit,
             @RequestParam String table
     ) {
-        typesenseService.importSampleFromTypesense(table);
-        return ApiResponse.success(HttpStatus.OK.value(), "Direct import sample completed", "Imported from " + table);
+        typesenseService.importSampleFromTypesense(limit, table);
+        return ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Direct import sample completed",
+                "Imported " + limit + " records from " + table
+        );
     }
 
     @GetMapping("/documents/export")
