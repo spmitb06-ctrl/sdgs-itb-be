@@ -81,9 +81,10 @@ public class NewsGoal {
             return id.equals(that.id);
         }
 
-        return news != null && goal != null &&
-                Objects.equals(news.getId(), that.news.getId()) &&
-                Objects.equals(goal.getId(), that.goal.getId());
+        return Objects.equals(news != null ? news.getId() : null,
+                that.news != null ? that.news.getId() : null) &&
+                Objects.equals(goal != null ? goal.getId() : null,
+                        that.goal != null ? that.goal.getId() : null);
     }
 
     @Override
@@ -91,8 +92,8 @@ public class NewsGoal {
         return id != null
                 ? id.hashCode()
                 : Objects.hash(
-                news != null ? news.getId() : 0,
-                goal != null ? goal.getId() : 0
+                news != null ? news.getId() : null,
+                goal != null ? goal.getId() : null
         );
     }
 }

@@ -14,14 +14,13 @@ public class CommunityServiceImportController {
 
     @PostMapping("/import/sample")
     public ResponseEntity<String> importSample() {
-        importService.importSample(20);
-        return ResponseEntity.ok("Imported sample Community Service records");
+        int count = importService.importSample(20);
+        return ResponseEntity.ok("Imported " + count + " new Community Service records.");
     }
 
     @PostMapping("/import/all")
     public ResponseEntity<String> importAll() {
-        importService.importAll();
-        return ResponseEntity.ok("Imported all Community Service records");
+        int count = importService.importAll();
+        return ResponseEntity.ok("Imported " + count + " new Community Service records.");
     }
 }
-

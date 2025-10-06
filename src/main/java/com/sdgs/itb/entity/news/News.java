@@ -3,6 +3,7 @@ package com.sdgs.itb.entity.news;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.sdgs.itb.entity.goal.Goal;
 import com.sdgs.itb.entity.goal.Scholar;
+import com.sdgs.itb.entity.unit.Unit;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -36,6 +37,9 @@ public class News {
 
     @Column(name = "source_url")
     private String sourceUrl;
+
+    @Column(name = "scholar_year")
+    private String scholarYear;
 
     @Column(name = "deleted_at")
     private OffsetDateTime deletedAt;
@@ -103,13 +107,27 @@ public class News {
     }
 
     public void addGoal(Goal goal) {
-        // rely on Set + equals/hashCode in NewsGoal to prevent duplicates
-        NewsGoal newsGoal = new NewsGoal();
-        newsGoal.setNews(this);
-        newsGoal.setGoal(goal);
-
-        newsGoals.add(newsGoal);   // HashSet prevents duplicates
+        boolean exists = newsGoals.stream()
+                .anyMatch(ng -> ng.getGoal() != null && ng.getGoal().equals(goal));
+        if (!exists) {
+            NewsGoal newsGoal = new NewsGoal();
+            newsGoal.setNews(this);
+            newsGoal.setGoal(goal);
+            newsGoals.add(newsGoal);
+        }
     }
+
+    public void addUnit(Unit unit) {
+        boolean exists = newsUnits.stream()
+                .anyMatch(nu -> nu.getUnit() != null && nu.getUnit().equals(unit));
+        if (!exists) {
+            NewsUnit newsUnit = new NewsUnit();
+            newsUnit.setNews(this);
+            newsUnit.setUnit(unit);
+            newsUnits.add(newsUnit);
+        }
+    }
+
 
     public void removeGoal(Goal goal) {
         newsGoals.removeIf(ag -> ag.getGoal().equals(goal));
