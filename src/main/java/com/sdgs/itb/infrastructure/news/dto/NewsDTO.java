@@ -2,6 +2,7 @@ package com.sdgs.itb.infrastructure.news.dto;
 
 import lombok.*;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -16,6 +17,7 @@ public class NewsDTO {
     private String thumbnailUrl;
     private String sourceUrl;
     private List<String> imageUrls;
+    private LocalDate eventDate;
     private List<Long> goalIds;
     private Long categoryId;
     private String categoryName;

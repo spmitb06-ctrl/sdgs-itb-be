@@ -10,6 +10,7 @@ public class UnitDTO {
     private Long id;
     private Long organizationId;
     private String name;
+    private String abbreviation;
     private Long typeId;
     private String typeName;
 }

@@ -2,6 +2,7 @@ package com.sdgs.itb.infrastructure.typesense.dto;
 
 import lombok.Data;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -11,7 +12,7 @@ public class TypesenseNewsExportDTO {
     private List<String> sdg;    // multiple SDGs
     private String title;
     private String url;
-    private OffsetDateTime dateTime;
+    private LocalDate dateTime;
     private String scholarName;
     private String image;
     private String year;

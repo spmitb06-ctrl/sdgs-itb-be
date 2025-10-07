@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -169,21 +170,21 @@ public class CommunityServiceImportServiceImpl implements CommunityServiceImport
         news.setNewsCategory(communityCategory);
 
         if (dto.getCreatedDate() != null) {
-            LocalDateTime localCreated = LocalDateTime.parse(dto.getCreatedDate(),
-                    DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss"));
-            OffsetDateTime created = localCreated.atOffset(ZoneOffset.UTC);
-            news.setCreatedAt(created);
-            news.setUpdatedAt(created);
+            LocalDateTime localDateTime = LocalDateTime.parse(
+                    dto.getCreatedDate(),
+                    DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss")
+            );
+            LocalDate eventDate = localDateTime.toLocalDate();
+            news.setEventDate(eventDate);
         } else {
-            news.setCreatedAt(OffsetDateTime.now());
-            news.setUpdatedAt(OffsetDateTime.now());
+            news.setEventDate(LocalDate.now());
         }
 
         News savedNews = newsRepository.save(news);
 
         // Add Unit safely
-        Unit unit = unitRepository.findByName("Other")
-                .orElseThrow(() -> new DataNotFoundException("Unit with name 'Other' not found!"));
+        Unit unit = unitRepository.findByAbbreviation("DPMK")
+                .orElseThrow(() -> new DataNotFoundException("Unit with name 'DPMK' not found!"));
         savedNews.addUnit(unit);
 
         // Add Goals safely

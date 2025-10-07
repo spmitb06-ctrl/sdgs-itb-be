@@ -35,6 +35,9 @@ public class Unit {
     @Column(nullable = false, unique = true)
     private String name;
 
+    @Column
+    private String abbreviation;
+
     @Column(name = "deleted_at")
     private OffsetDateTime deletedAt;
 

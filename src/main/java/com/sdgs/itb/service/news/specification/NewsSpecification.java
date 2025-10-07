@@ -63,9 +63,13 @@ public class NewsSpecification {
             if (year == null || year.isEmpty()) {
                 return cb.conjunction();
             }
-            // Convert year string to integer
-            int yearInt = Integer.parseInt(year);
-            return cb.equal(cb.function("YEAR", Integer.class, root.get("createdAt")), yearInt);
+            try {
+                int yearInt = Integer.parseInt(year);
+                return cb.equal(cb.function("YEAR", Integer.class, root.get("eventDate")), yearInt);
+            } catch (NumberFormatException e) {
+                return cb.conjunction();
+            }
         };
     }
+
 }

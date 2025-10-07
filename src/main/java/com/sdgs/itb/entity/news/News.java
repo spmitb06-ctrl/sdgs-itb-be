@@ -1,6 +1,7 @@
 package com.sdgs.itb.entity.news;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.sdgs.itb.entity.goal.Goal;
 import com.sdgs.itb.entity.goal.Scholar;
 import com.sdgs.itb.entity.unit.Unit;
@@ -9,6 +10,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import org.hibernate.annotations.ColumnDefault;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.*;
 
@@ -40,6 +42,10 @@ public class News {
 
     @Column(name = "scholar_year")
     private String scholarYear;
+
+    @Column(name = "event_date")
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate eventDate;
 
     @Column(name = "deleted_at")
     private OffsetDateTime deletedAt;

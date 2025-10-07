@@ -8,6 +8,7 @@ public class UnitMapper {
         Unit unit = new Unit();
         unit.setOrganizationId(dto.getOrganizationId());
         unit.setName(dto.getName());
+        unit.setAbbreviation(dto.getAbbreviation());
 
         return unit;
     }
@@ -17,6 +18,7 @@ public class UnitMapper {
         dto.setId(unit.getId());
         dto.setOrganizationId(unit.getOrganizationId());
         dto.setName(unit.getName());
+        dto.setAbbreviation(unit.getAbbreviation());
 
         if (unit.getUnitType() != null) {
             dto.setTypeId(unit.getUnitType().getId());
