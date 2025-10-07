@@ -75,7 +75,7 @@ public class TypesenseServiceImpl implements TypesenseService {
             boolean hasMore = true;
 
             // cutoff timestamp = 2024-01-01 UTC
-            OffsetDateTime cutoffDate = OffsetDateTime.of(2024, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC);
+            LocalDate cutoffDate = LocalDate.of(2024, 1, 1);
 
             // formatter for "start" field in project collection (e.g. "5 January 2024")
             DateTimeFormatter formatter = new DateTimeFormatterBuilder()
@@ -126,15 +126,15 @@ public class TypesenseServiceImpl implements TypesenseService {
 
                     List<String> sdg = (List<String>) doc.get("sdg");
 
-                    // ✅ Parse datetime
-                    OffsetDateTime dateTime = null;
+                    // ✅ Parse LocalDate instead of OffsetDateTime
+                    LocalDate eventDate = null;
                     if (collection.equals("project")) {
                         String startStr = (String) doc.get("start");
                         if (startStr == null || startStr.trim().isEmpty()) continue;
                         try {
                             LocalDate parsed = LocalDate.parse(startStr.trim(), formatter);
-                            dateTime = parsed.atStartOfDay().atOffset(ZoneOffset.UTC);
-                            if (dateTime.isBefore(cutoffDate)) continue;
+                            if (parsed.isBefore(cutoffDate)) continue;
+                            eventDate = parsed;
                         } catch (DateTimeParseException e) {
                             System.out.println("Skipping invalid start date: " + startStr);
                             continue;
@@ -142,8 +142,8 @@ public class TypesenseServiceImpl implements TypesenseService {
                     } else {
                         Long ts = ((Number) doc.getOrDefault("_ts", 0L)).longValue();
                         if (ts == 0L) continue;
-                        dateTime = OffsetDateTime.ofInstant(Instant.ofEpochSecond(ts), ZoneOffset.UTC);
-                        if (dateTime.isBefore(cutoffDate)) continue;
+                        eventDate = Instant.ofEpochSecond(ts).atZone(ZoneOffset.UTC).toLocalDate();
+                        if (eventDate.isBefore(cutoffDate)) continue;
                     }
 
                     // ✅ Parse organizations (only <= 12)
@@ -172,7 +172,7 @@ public class TypesenseServiceImpl implements TypesenseService {
                     dto.setTitle(title);
                     dto.setUrl(slug);
                     dto.setSdg(sdg);
-                    dto.setDateTime(dateTime);
+                    dto.setDateTime(eventDate);  // <-- LocalDate
                     dto.setScholarName(collection);
                     dto.setYear(year);
                     dto.setOrganizations(organizations);

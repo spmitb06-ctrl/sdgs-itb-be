@@ -41,7 +41,7 @@ public class GoalSeeder implements CommandLineRunner {
                     Goal.builder().id(15L).goalNumber(15).title("GOAL 15: Life on Land").description("Protect, restore, and promote sustainable use of ecosystems.").color("#56c02b").icon("/sdgs/goal15.png").editedIcon("/sdgs/edited/goal15.png").linkUrl(null).build(),
                     Goal.builder().id(16L).goalNumber(16).title("GOAL 16: Peace, Justice and Strong Institutions").description("Promote peaceful and inclusive societies for sustainable development.").color("#00689d").icon("/sdgs/goal16.png").editedIcon("/sdgs/edited/goal16.png").linkUrl(null).build(),
                     Goal.builder().id(17L).goalNumber(17).title("GOAL 17: Partnerships for the Goals").description("Strengthen global partnerships for sustainable development.").color("#19486a").icon("/sdgs/goal17.png").editedIcon("/sdgs/edited/goal17.png").linkUrl(null).build(),
-                    Goal.builder().id(18L).goalNumber(0).title("SDG Wheel Logo").description("Logo").color("#FFFFFF").icon("/sdgs/wheel.png").linkUrl(null).build()
+                    Goal.builder().id(18L).goalNumber(0).title("SDG Wheel Logo").description("Logo").color("#FFFFFF").icon("/sdgs/Logo-SDGs-ITB.png").linkUrl(null).build()
             ));
 
             List<Scholar> scholars = scholarRepository.findAll();

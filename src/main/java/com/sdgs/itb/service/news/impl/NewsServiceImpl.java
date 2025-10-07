@@ -121,6 +121,7 @@ public class NewsServiceImpl implements NewsService {
         existing.setContent(dto.getContent());
         existing.setThumbnailUrl(dto.getThumbnailUrl());
         existing.setSourceUrl(dto.getSourceUrl());
+        existing.setEventDate(dto.getEventDate());
 
         // Category
         if (dto.getCategoryId() != null) {

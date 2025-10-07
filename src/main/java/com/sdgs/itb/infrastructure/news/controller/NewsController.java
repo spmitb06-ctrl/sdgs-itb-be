@@ -114,7 +114,7 @@ public class NewsController {
             @RequestParam(required = false) String scholarIds, // comma-separated
             @RequestParam(required = false) String unitIds,  // comma-separated
             @RequestParam(required = false) String year,
-            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "eventDate") String sortBy,
             @RequestParam(defaultValue = "DESC") String sortDir,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "12") int size

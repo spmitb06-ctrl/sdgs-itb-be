@@ -4,17 +4,21 @@ import com.sdgs.itb.entity.news.News;
 import com.sdgs.itb.entity.news.NewsCategory;
 import com.sdgs.itb.entity.goal.Goal;
 import com.sdgs.itb.entity.goal.Scholar;
+import com.sdgs.itb.entity.unit.Unit;
 import com.sdgs.itb.infrastructure.news.repository.NewsCategoryRepository;
 import com.sdgs.itb.infrastructure.news.repository.NewsRepository;
 import com.sdgs.itb.infrastructure.goal.repository.GoalRepository;
 import com.sdgs.itb.infrastructure.goal.repository.ScholarRepository;
 import com.sdgs.itb.infrastructure.typesense.dto.TypesenseNewsExportDTO;
+import com.sdgs.itb.infrastructure.unit.repository.UnitRepository;
 import com.sdgs.itb.service.news.NewsImportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -26,6 +30,7 @@ public class NewsImportServiceImpl implements NewsImportService {
     private final GoalRepository goalRepository;
     private final NewsRepository newsRepository;
     private final NewsCategoryRepository newsCategoryRepository;
+    private final UnitRepository unitRepository;
 
     private final Map<String, Goal> goalCache = new HashMap<>();
     private final Map<String, Scholar> scholarCache = new HashMap<>();
@@ -79,9 +84,9 @@ public class NewsImportServiceImpl implements NewsImportService {
         newNews.setScholarYear(dto.getYear());
 
         // ✅ Use dateTime (unified field from Typesense import)
-        newNews.setCreatedAt(dto.getDateTime() != null
+        newNews.setEventDate(dto.getDateTime() != null
                 ? dto.getDateTime()
-                : OffsetDateTime.now());
+                : LocalDate.now());
 
         // ---- Category mapping ----
         String scholarName = dto.getScholarName().toLowerCase();
@@ -141,6 +146,16 @@ public class NewsImportServiceImpl implements NewsImportService {
                             savedNews.addGoal(goal);
                         }
                     });
+        }
+
+        // ---- Add Units based on organization IDs ----
+        if (dto.getOrganizations() != null && !dto.getOrganizations().isEmpty()) {
+            for (Long orgId : dto.getOrganizations()) {
+                List<Unit> units = unitRepository.findByOrganizationId(orgId);
+                for (Unit unit : units) {
+                    savedNews.addUnit(unit);
+                }
+            }
         }
 
         return newsRepository.save(savedNews);

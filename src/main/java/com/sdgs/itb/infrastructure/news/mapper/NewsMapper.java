@@ -21,6 +21,7 @@ public class NewsMapper {
         news.setContent(dto.getContent());
         news.setThumbnailUrl(dto.getThumbnailUrl());
         news.setSourceUrl(dto.getSourceUrl());
+        news.setEventDate(dto.getEventDate());
 
         if (dto.getImageUrls() != null && !dto.getImageUrls().isEmpty()) {
             news.setImages(dto.getImageUrls().stream()
@@ -41,6 +42,7 @@ public class NewsMapper {
         dto.setContent(news.getContent());
         dto.setThumbnailUrl(news.getThumbnailUrl());
         dto.setSourceUrl(news.getSourceUrl());
+        dto.setEventDate(news.getEventDate());
         dto.setCreatedAt(news.getCreatedAt());
 
         dto.setImageUrls(news.getImages().stream()
