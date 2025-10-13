@@ -1,11 +1,15 @@
 package com.sdgs.itb.service.policy.impl;
 
 import com.sdgs.itb.common.exceptions.DataNotFoundException;
+import com.sdgs.itb.entity.goal.Goal;
 import com.sdgs.itb.entity.policy.Policy;
 import com.sdgs.itb.entity.policy.PolicyCategory;
+import com.sdgs.itb.entity.policy.PolicyGoal;
+import com.sdgs.itb.infrastructure.goal.repository.GoalRepository;
 import com.sdgs.itb.infrastructure.policy.dto.PolicyDTO;
 import com.sdgs.itb.infrastructure.policy.mapper.PolicyMapper;
 import com.sdgs.itb.infrastructure.policy.repository.PolicyCategoryRepository;
+import com.sdgs.itb.infrastructure.policy.repository.PolicyGoalRepository;
 import com.sdgs.itb.infrastructure.policy.repository.PolicyRepository;
 import com.sdgs.itb.service.policy.PolicyService;
 import com.sdgs.itb.service.policy.specification.PolicySpecification;
@@ -16,6 +20,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -24,7 +29,9 @@ import java.util.List;
 public class PolicyServiceImpl implements PolicyService {
 
     private final PolicyRepository policyRepository;
+    private final PolicyGoalRepository policyGoalRepository;
     private final PolicyCategoryRepository categoryRepository;
+    private final GoalRepository goalRepository;
 
     @Override
     public PolicyDTO createPolicy(PolicyDTO dto) {
@@ -38,26 +45,50 @@ public class PolicyServiceImpl implements PolicyService {
             String categoryName = category.getCategory();
             String imageUrl;
 
-            if ("ITB".equalsIgnoreCase(categoryName)) {
-                imageUrl = "/policy/ITB.jpeg";
-            } else if ("National".equalsIgnoreCase(categoryName)) {
-                imageUrl = "/policy/National.jpg";
-            } else if ("International".equalsIgnoreCase(categoryName)) {
-                imageUrl = "/policy/International.jpg";
+            if (dto.getImageUrl() != null) {
+                policy.setImageUrl(dto.getImageUrl());
             } else {
-                imageUrl = "/policy/Policy.jpg";
-            }
+                if ("ITB".equalsIgnoreCase(categoryName)) {
+                    imageUrl = "/policy/ITB.jpeg";
+                } else if ("National".equalsIgnoreCase(categoryName)) {
+                    imageUrl = "/policy/National.jpg";
+                } else if ("International".equalsIgnoreCase(categoryName)) {
+                    imageUrl = "/policy/International.jpg";
+                } else {
+                    imageUrl = "/policy/Policy.jpg";
+                }
 
-            policy.setImageUrl(imageUrl);
+                policy.setImageUrl(imageUrl);
+            }
         } else {
             // If no category, fallback image
-            policy.setImageUrl("/policy/Policy.jpg");
+            if (dto.getImageUrl() != null) {
+                policy.setImageUrl(dto.getImageUrl());
+            } else {
+                policy.setImageUrl("/policy/Policy.jpg");
+            }
+        }
+
+        Policy savedPolicy = policyRepository.saveAndFlush(policy);
+
+        // Goals
+        if (dto.getGoalIds() != null && !dto.getGoalIds().isEmpty()) {
+            List<Goal> goals = goalRepository.findAllById(dto.getGoalIds());
+            if (goals.isEmpty()) throw new DataNotFoundException("No valid goals found");
+
+            for (Goal goal : goals) { // Regular for-loop
+                PolicyGoal ag = PolicyGoal.builder()
+                        .policy(savedPolicy)
+                        .goal(goal)
+                        .build();
+                savedPolicy.getPolicyGoals().add(ag);
+            }
         }
 
         return PolicyMapper.toDTO(policyRepository.save(policy));
     }
 
-
+    @Transactional
     @Override
     public PolicyDTO updatePolicy(Long id, PolicyDTO dto) {
         Policy existing = policyRepository.findById(id)
@@ -74,17 +105,51 @@ public class PolicyServiceImpl implements PolicyService {
         String categoryName = category.getCategory();
         String imageUrl;
 
-        if ("ITB".equalsIgnoreCase(categoryName)) {
-            imageUrl = "/policy/ITB.jpeg";
-        } else if ("National".equalsIgnoreCase(categoryName)) {
-            imageUrl = "/policy/National.jpg";
-        } else if ("International".equalsIgnoreCase(categoryName)) {
-            imageUrl = "/policy/International.jpg";
+        if (existing.getImageUrl() != null) {
+            existing.setImageUrl(dto.getImageUrl());
         } else {
-            imageUrl = "/policy/Policy.jpg";
+            if ("ITB".equalsIgnoreCase(categoryName)) {
+                imageUrl = "/policy/ITB.jpeg";
+            } else if ("National".equalsIgnoreCase(categoryName)) {
+                imageUrl = "/policy/National.jpg";
+            } else if ("International".equalsIgnoreCase(categoryName)) {
+                imageUrl = "/policy/International.jpg";
+            } else {
+                imageUrl = "/policy/Policy.jpg";
+            }
+
+            existing.setImageUrl(imageUrl);
         }
 
-        existing.setImageUrl(imageUrl);
+        // Goals
+        if (dto.getGoalIds() != null && !dto.getGoalIds().isEmpty()) {
+            List<Goal> policyGoals = goalRepository.findAllById(dto.getGoalIds());
+            if (policyGoals.isEmpty()) throw new DataNotFoundException("No valid goals found");
+
+            // Fetch all current active PolicyGoal relations for this Policy
+            List<PolicyGoal> existingPolicyGoals = policyGoalRepository.findAllByPolicyId(existing.getId());
+
+            // Hard delete PolicyGoal records that are not in dto.getGoalIds()
+            for (PolicyGoal oldPolicyGoal : existingPolicyGoals) {
+                if (!dto.getGoalIds().contains(oldPolicyGoal.getGoal().getId())) {
+                    policyGoalRepository.delete(oldPolicyGoal);
+                }
+            }
+
+            // Remove goals that already exist (to avoid duplicates)
+            policyGoals.removeIf(goal ->
+                    policyGoalRepository.findByPolicyIdAndGoalId(existing.getId(), goal.getId()).isPresent()
+            );
+
+            // Add new PolicyGoal entries for remaining goals
+            for (Goal goal : policyGoals) {
+                PolicyGoal newPolicyGoal = PolicyGoal.builder()
+                        .policy(existing)
+                        .goal(goal)
+                        .build();
+                existing.getPolicyGoals().add(newPolicyGoal);
+            }
+        }
 
         return PolicyMapper.toDTO(policyRepository.save(existing));
     }
@@ -111,6 +176,7 @@ public class PolicyServiceImpl implements PolicyService {
     public Page<PolicyDTO> getPolicies(
             String title,
             String year,
+            List<Long> goalIds,
             List<Long> categoryIds,
             String sortBy,
             String sortDir,

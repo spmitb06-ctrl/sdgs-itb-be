@@ -1,5 +1,6 @@
 package com.sdgs.itb.entity.policy;
 
+import com.sdgs.itb.entity.news.NewsGoal;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -71,6 +72,10 @@ public class Policy {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "policy_category_id")
     private PolicyCategory policyCategory;
+
+    @OneToMany(mappedBy = "policy", fetch = FetchType.LAZY,
+            cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<PolicyGoal> policyGoals = new HashSet<>();
 
     @Override
     public boolean equals(Object o) {

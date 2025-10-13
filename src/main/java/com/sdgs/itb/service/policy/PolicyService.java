@@ -13,6 +13,7 @@ public interface PolicyService {
     Page<PolicyDTO> getPolicies(
             String title,
             String year,
+            List<Long> goalIds,
             List<Long> categoryIds,
             String sortBy,
             String sortDir,

@@ -22,6 +22,18 @@ public class PolicySpecification {
                 year == null ? null : cb.like(root.get("year"), "%" + year + "%");
     }
 
+    public static Specification<Policy> hasGoal(List<Long> goalIds) {
+        return (root, query, cb) -> {
+            if (goalIds == null || goalIds.isEmpty()) {
+                return cb.conjunction();
+            }
+            return root.join("policyGoals")
+                    .join("goal")
+                    .get("id")
+                    .in(goalIds);
+        };
+    }
+
     public static Specification<Policy> hasCategories(List<Long> categoryIds) {
         return (root, query, cb) -> {
             if (categoryIds == null || categoryIds.isEmpty()) {

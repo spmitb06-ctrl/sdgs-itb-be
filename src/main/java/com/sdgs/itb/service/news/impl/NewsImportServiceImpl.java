@@ -91,15 +91,14 @@ public class NewsImportServiceImpl implements NewsImportService {
         // ---- Category mapping ----
         String scholarName = dto.getScholarName().toLowerCase();
         NewsCategory category;
-        if (scholarName.equals("project")) {
-            category = categoryCache.get("research");
-            newNews.setContent(dto.getAbstractText());
-            newNews.setSourceUrl("https://scholar.itb.ac.id/project_detail/" + dto.getUrl());
-            newNews.setThumbnailUrl("/news/project.jpg");
-        } else if (scholarName.equals("paper") || scholarName.equals("patent") || scholarName.equals("thesis")) {
-            category = categoryCache.get("publication");
+        if (scholarName.equals("project") || scholarName.equals("paper") || scholarName.equals("patent") || scholarName.equals("thesis")) {
+            category = categoryCache.get("publication, research & paper");
             newNews.setContent(dto.getAbstractText());
             switch (scholarName) {
+                case "project" -> {
+                    newNews.setSourceUrl("https://scholar.itb.ac.id/project_detail/" + dto.getUrl());
+                    newNews.setThumbnailUrl("/news/project.jpg");
+                }
                 case "paper" -> {
                     newNews.setSourceUrl("https://scholar.itb.ac.id/paper_detail/" + dto.getUrl());
                     newNews.setThumbnailUrl("/news/paper.jpeg");

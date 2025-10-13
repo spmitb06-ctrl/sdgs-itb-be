@@ -1,5 +1,6 @@
 package com.sdgs.itb.infrastructure.news.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.*;
 
 import java.time.LocalDate;
@@ -17,7 +18,10 @@ public class NewsDTO {
     private String thumbnailUrl;
     private String sourceUrl;
     private List<String> imageUrls;
+
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate eventDate;
+
     private List<Long> goalIds;
     private Long categoryId;
     private String categoryName;
@@ -27,6 +31,7 @@ public class NewsDTO {
     private List<Long> unitIds;
     private OffsetDateTime createdAt;
 
+    private List<NewsCategoryDTO> newsCategories;
     private List<NewsGoalDTO> newsGoals;
     private List<NewsUnitDTO> newsUnits;
 }

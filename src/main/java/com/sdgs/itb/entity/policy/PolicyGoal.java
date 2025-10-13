@@ -1,4 +1,4 @@
-package com.sdgs.itb.entity.news;
+package com.sdgs.itb.entity.policy;
 
 import com.sdgs.itb.entity.goal.Goal;
 import jakarta.persistence.*;
@@ -11,10 +11,10 @@ import java.util.Objects;
 
 @Entity
 @Table(
-        name = "news_goals",
+        name = "policy_goals",
         schema = "sdgs",
         uniqueConstraints = {
-                @UniqueConstraint(columnNames = {"news_id", "goal_id"})
+                @UniqueConstraint(columnNames = {"policy_id", "goal_id"})
         }
 )
 @Getter
@@ -22,13 +22,13 @@ import java.util.Objects;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class NewsGoal {
+public class PolicyGoal {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "news_goal_id_gen")
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "policy_goal_id_gen")
     @SequenceGenerator(
-            name = "news_goal_id_gen",
-            sequenceName = "news_goal_id_seq",
+            name = "policy_goal_id_gen",
+            sequenceName = "policy_goal_id_seq",
             schema = "sdgs",
             allocationSize = 1
     )
@@ -65,8 +65,8 @@ public class NewsGoal {
 
     // Relationships
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "news_id", nullable = false)
-    private News news;
+    @JoinColumn(name = "policy_id", nullable = false)
+    private Policy policy;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "goal_id", nullable = false)
@@ -75,14 +75,14 @@ public class NewsGoal {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof NewsGoal that)) return false;
+        if (!(o instanceof PolicyGoal that)) return false;
 
         if (id != null && that.id != null) {
             return id.equals(that.id);
         }
 
-        return  Objects.equals(news != null ? news.getId() : null,
-                        that.news != null ? that.news.getId() : null) &&
+        return Objects.equals(policy != null ? policy.getId() : null,
+                that.policy != null ? that.policy.getId() : null) &&
                 Objects.equals(goal != null ? goal.getId() : null,
                         that.goal != null ? that.goal.getId() : null);
     }
@@ -92,7 +92,7 @@ public class NewsGoal {
         return id != null
                 ? id.hashCode()
                 : Objects.hash(
-                news != null ? news.getId() : null,
+                policy != null ? policy.getId() : null,
                 goal != null ? goal.getId() : null
         );
     }
