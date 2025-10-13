@@ -134,6 +134,41 @@ public class News {
         }
     }
 
+    public void setUnits(Set<Unit> newUnits) {
+        // Remove missing units
+        this.newsUnits.removeIf(newsUnit ->
+                !newUnits.contains(newsUnit.getUnit())
+        );
+
+        // Add new units
+        for (Unit unit : newUnits) {
+            boolean exists = this.newsUnits.stream()
+                    .anyMatch(nu -> nu.getUnit().equals(unit));
+            if (!exists) {
+                NewsUnit nu = new NewsUnit();
+                nu.setNews(this);
+                nu.setUnit(unit);
+                this.newsUnits.add(nu);
+            }
+        }
+    }
+
+    public void setGoals(Set<Goal> newGoals) {
+        this.newsGoals.removeIf(newsGoal ->
+                !newGoals.contains(newsGoal.getGoal())
+        );
+
+        for (Goal goal : newGoals) {
+            boolean exists = this.newsGoals.stream()
+                    .anyMatch(ng -> ng.getGoal().equals(goal));
+            if (!exists) {
+                NewsGoal ng = new NewsGoal();
+                ng.setNews(this);
+                ng.setGoal(goal);
+                this.newsGoals.add(ng);
+            }
+        }
+    }
 
     public void removeGoal(Goal goal) {
         newsGoals.removeIf(ag -> ag.getGoal().equals(goal));

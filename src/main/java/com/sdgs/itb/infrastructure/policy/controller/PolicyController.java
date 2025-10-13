@@ -30,9 +30,9 @@ public class PolicyController {
         }
     }
 
-    @PutMapping
+    @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<PolicyDTO>> update(
-            @RequestParam Long id,
+            @PathVariable Long id,
             @RequestBody PolicyDTO dto
     ) {
         try {
@@ -47,8 +47,8 @@ public class PolicyController {
         }
     }
 
-    @DeleteMapping
-    public ResponseEntity<ApiResponse<Void>> delete(@RequestParam Long id) {
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         try {
             policyService.deletePolicy(id);
             return ApiResponse.success(
@@ -78,12 +78,17 @@ public class PolicyController {
     public ResponseEntity<ApiResponse<Page<PolicyDTO>>> getAll(
             @RequestParam(required = false) String title,
             @RequestParam(required = false) String year,
+            @RequestParam(required = false) String goalIds,     // comma-separated
             @RequestParam(required = false) String categoryIds, // comma-separated
             @RequestParam(defaultValue = "year") String sortBy,
             @RequestParam(defaultValue = "DESC") String sortDir,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "12") int size
     ) {
+        List<Long> goalIdList = goalIds != null && !goalIds.isEmpty()
+                ? Arrays.stream(goalIds.split(",")).map(Long::parseLong).toList()
+                : List.of();
+
         List<Long> categoryIdList = categoryIds != null && !categoryIds.isEmpty()
                 ? Arrays.stream(categoryIds.split(",")).map(Long::parseLong).toList()
                 : List.of();
@@ -91,7 +96,7 @@ public class PolicyController {
         return ApiResponse.success(
                 HttpStatus.OK.value(),
                 "Policies fetched successfully",
-                policyService.getPolicies(title, year, categoryIdList, sortBy, sortDir, page, size)
+                policyService.getPolicies(title, year, goalIdList, categoryIdList, sortBy, sortDir, page, size)
         );
     }
 

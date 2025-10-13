@@ -81,8 +81,8 @@ public class NewsUnit {
             return id.equals(that.id);
         }
 
-        return Objects.equals(news != null ? news.getId() : null,
-                that.news != null ? that.news.getId() : null) &&
+        return  Objects.equals(news != null ? news.getId() : null,
+                        that.news != null ? that.news.getId() : null) &&
                 Objects.equals(unit != null ? unit.getId() : null,
                         that.unit != null ? that.unit.getId() : null);
     }

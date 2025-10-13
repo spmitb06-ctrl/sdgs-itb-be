@@ -28,6 +28,17 @@ public class NewsSpecification {
         };
     }
 
+//    public static Specification<News> hasCategory(Long categoryId) {
+//        return (root, query, cb) -> {
+//            if (categoryId == null) {
+//                return cb.conjunction();
+//            }
+//            assert query != null;
+//            query.distinct(true);
+//            return root.join("newsCategory").get("id").in(List.of(categoryId));
+//        };
+//    }
+
     public static Specification<News> hasCategories(List<Long> categoryIds) {
         return (root, query, cb) -> {
             if (categoryIds == null || categoryIds.isEmpty()) {

@@ -13,6 +13,7 @@ public interface NewsService {
     Page<NewsDTO> getNews(
             String title,
             List<Long> goalIds,
+//            Long categoryId,
             List<Long> categoryIds,
             List<Long> scholarIds,
             List<Long> unitIds,

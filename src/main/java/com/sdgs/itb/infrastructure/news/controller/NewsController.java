@@ -24,7 +24,7 @@ public class NewsController {
 
     private final NewsService newsService;
     private final CloudinaryService cloudinaryService;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
     @PostMapping(consumes = {"multipart/form-data"})
     public ResponseEntity<ApiResponse<NewsDTO>> create(
@@ -110,6 +110,7 @@ public class NewsController {
     public ResponseEntity<ApiResponse<Page<NewsDTO>>> getAll(
             @RequestParam(required = false) String title,
             @RequestParam(required = false) String goalIds,     // comma-separated
+//            @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) String categoryIds, // comma-separated
             @RequestParam(required = false) String scholarIds, // comma-separated
             @RequestParam(required = false) String unitIds,  // comma-separated
@@ -138,7 +139,19 @@ public class NewsController {
         return ApiResponse.success(
                 HttpStatus.OK.value(),
                 "News fetched successfully",
-                newsService.getNews(title, goalIdList, categoryIdList, scholarIdList, unitIdList, year, sortBy, sortDir, page, size)
+                newsService.getNews(
+                        title,
+                        goalIdList,
+//                        categoryId,
+                        categoryIdList,
+                        scholarIdList,
+                        unitIdList,
+                        year,
+                        sortBy,
+                        sortDir,
+                        page,
+                        size
+                )
         );
     }
 

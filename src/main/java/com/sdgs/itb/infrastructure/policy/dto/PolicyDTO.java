@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
 @Builder
 @AllArgsConstructor
@@ -19,4 +21,7 @@ public class PolicyDTO {
     private Long categoryId;
     private String categoryName;
     private String categoryColor;
+    private List<Long> goalIds;
+
+    private List<PolicyGoalDTO> policyGoals;
 }

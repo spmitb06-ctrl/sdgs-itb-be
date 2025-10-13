@@ -38,18 +38,26 @@ public class ReportServiceImpl implements ReportService {
             String categoryName = category.getCategory();
             String imageUrl;
 
-            if ("SDG".equalsIgnoreCase(categoryName)) {
-                imageUrl = "/report/sdgs.png";
-            } else if ("ESG".equalsIgnoreCase(categoryName)) {
-                imageUrl = "/report/esg.png";
+            if (dto.getImageUrl() != null) {
+                report.setImageUrl(dto.getImageUrl());
             } else {
-                imageUrl = "/report/other.png";
-            }
+                if ("SDG".equalsIgnoreCase(categoryName)) {
+                    imageUrl = "/report/sdgs.png";
+                } else if ("ESG".equalsIgnoreCase(categoryName)) {
+                    imageUrl = "/report/esg.png";
+                } else {
+                    imageUrl = "/report/other.png";
+                }
 
-            report.setImageUrl(imageUrl);
+                report.setImageUrl(imageUrl);
+            }
         } else {
             // If no category, fallback image
-            report.setImageUrl("/report/other.png");
+            if (dto.getImageUrl() != null) {
+                report.setImageUrl(dto.getImageUrl());
+            } else {
+                report.setImageUrl("/report/other.png");
+            }
         }
 
         return ReportMapper.toDTO(reportRepository.save(report));
@@ -72,15 +80,19 @@ public class ReportServiceImpl implements ReportService {
         String categoryName = category.getCategory();
         String imageUrl;
 
-        if ("SDG".equalsIgnoreCase(categoryName)) {
-            imageUrl = "/report/sdgs.png";
-        } else if ("ESG".equalsIgnoreCase(categoryName)) {
-            imageUrl = "/report/esg.png";
+        if (existing.getImageUrl() != null) {
+            existing.setImageUrl(dto.getImageUrl());
         } else {
-            imageUrl = "/report/other.png";
-        }
+            if ("SDG".equalsIgnoreCase(categoryName)) {
+                imageUrl = "/report/sdgs.png";
+            } else if ("ESG".equalsIgnoreCase(categoryName)) {
+                imageUrl = "/report/esg.png";
+            } else {
+                imageUrl = "/report/other.png";
+            }
 
-        existing.setImageUrl(imageUrl);
+            existing.setImageUrl(imageUrl);
+        }
 
         return ReportMapper.toDTO(reportRepository.save(existing));
     }
