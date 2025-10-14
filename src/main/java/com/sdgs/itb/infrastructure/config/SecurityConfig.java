@@ -99,6 +99,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/files/**").permitAll()
                         .requestMatchers("/api/v1/typesense/**").permitAll()
                         .requestMatchers("/api/v1/community-service/**").permitAll()
+                        .requestMatchers("/api/v1/data").permitAll()
+                        .requestMatchers("/api/v1/data/**").permitAll()
+                        .requestMatchers("/api/v1/data/categories").permitAll()
+                        .requestMatchers("/api/v1/data/categories/**").permitAll()
 
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

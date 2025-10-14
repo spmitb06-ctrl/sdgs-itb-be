@@ -1,31 +1,34 @@
-package com.sdgs.itb.entity.news;
+package com.sdgs.itb.entity.data;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.sdgs.itb.entity.goal.Goal;
 import com.sdgs.itb.entity.goal.Scholar;
+import com.sdgs.itb.entity.data.DataCategory;
+import com.sdgs.itb.entity.data.DataGoal;
+import com.sdgs.itb.entity.data.DataImage;
+import com.sdgs.itb.entity.data.DataUnit;
 import com.sdgs.itb.entity.unit.Unit;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
-import org.hibernate.annotations.ColumnDefault;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.*;
 
 @Entity
-@Table(name = "news", schema = "sdgs")
+@Table(name = "data", schema = "sdgs")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class News {
+public class Data {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "news_id_gen")
-    @SequenceGenerator(name = "news_id_gen", sequenceName = "news_id_seq", schema = "sdgs", allocationSize = 1)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "data_id_gen")
+    @SequenceGenerator(name = "data_id_gen", sequenceName = "data_id_seq", schema = "sdgs", allocationSize = 1)
     private Long id;
 
     @Column(nullable = false)
@@ -39,9 +42,6 @@ public class News {
 
     @Column(name = "source_url")
     private String sourceUrl;
-
-    @Column(name = "scholar_year")
-    private String scholarYear;
 
     @Column(name = "event_date")
     @JsonFormat(pattern = "yyyy-MM-dd")
@@ -79,70 +79,66 @@ public class News {
     }
 
     // Relationships
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "data_category_id")
+    private DataCategory dataCategory;
 
     @JsonBackReference
-    @OneToMany(mappedBy = "news", fetch = FetchType.LAZY,
+    @OneToMany(mappedBy = "data", fetch = FetchType.LAZY,
             cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<NewsUnit> newsUnits = new HashSet<>();
+    private Set<DataUnit> dataUnits = new HashSet<>();
 
-    @OneToMany(mappedBy = "news", cascade = CascadeType.ALL,
-            orphanRemoval = true, fetch = FetchType.LAZY)
-    private List<NewsImage> images = new ArrayList<>();
-
-    @OneToMany(mappedBy = "news", fetch = FetchType.LAZY,
+    @JsonBackReference
+    @OneToMany(mappedBy = "data", fetch = FetchType.LAZY,
             cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<NewsGoal> newsGoals = new HashSet<>();
+    private Set<DataGoal> dataGoals = new HashSet<>();
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "news_category_id")
-    private NewsCategory newsCategory;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "scholar_id")
-    private Scholar scholar;
+    @JsonBackReference
+    @OneToMany(mappedBy = "data", fetch = FetchType.LAZY,
+            cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<DataImage> dataImages = new ArrayList<>();
 
     // Helper methods
-
     @Transient
     public Set<Goal> getGoals() {
         Set<Goal> goals = new HashSet<>();
-        for (NewsGoal newsGoal : newsGoals) {
-            goals.add(newsGoal.getGoal());
+        for (DataGoal dataGoal : dataGoals) {
+            goals.add(dataGoal.getGoal());
         }
         return goals;
     }
 
     public void addGoal(Goal goal) {
-        boolean exists = newsGoals.stream()
+        boolean exists = dataGoals.stream()
                 .anyMatch(ng -> ng.getGoal() != null && ng.getGoal().equals(goal));
         if (!exists) {
-            NewsGoal newsGoal = new NewsGoal();
-            newsGoal.setNews(this);
-            newsGoal.setGoal(goal);
-            newsGoals.add(newsGoal);
+            DataGoal dataGoal = new DataGoal();
+            dataGoal.setData(this);
+            dataGoal.setGoal(goal);
+            dataGoals.add(dataGoal);
         }
     }
 
     public void addUnit(Unit unit) {
-        boolean exists = newsUnits.stream()
+        boolean exists = dataUnits.stream()
                 .anyMatch(nu -> nu.getUnit() != null && nu.getUnit().equals(unit));
         if (!exists) {
-            NewsUnit newsUnit = new NewsUnit();
-            newsUnit.setNews(this);
-            newsUnit.setUnit(unit);
-            newsUnits.add(newsUnit);
+            DataUnit dataUnit = new DataUnit();
+            dataUnit.setData(this);
+            dataUnit.setUnit(unit);
+            dataUnits.add(dataUnit);
         }
     }
 
     public void removeGoal(Goal goal) {
-        newsGoals.removeIf(ag -> ag.getGoal().equals(goal));
+        dataGoals.removeIf(ag -> ag.getGoal().equals(goal));
     }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof News news)) return false;
-        return id != null && id.equals(news.id);
+        if (!(o instanceof Data data)) return false;
+        return id != null && id.equals(data.id);
     }
 
     @Override

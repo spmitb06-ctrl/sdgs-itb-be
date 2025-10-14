@@ -37,37 +37,27 @@ public class PolicyServiceImpl implements PolicyService {
     public PolicyDTO createPolicy(PolicyDTO dto) {
         Policy policy = PolicyMapper.toEntity(dto);
 
+        PolicyCategory category = null;
         if (dto.getCategoryId() != null) {
-            PolicyCategory category = categoryRepository.findById(dto.getCategoryId())
+            category = categoryRepository.findById(dto.getCategoryId())
                     .orElseThrow(() -> new DataNotFoundException("Category not found"));
             policy.setPolicyCategory(category);
+        }
 
-            String categoryName = category.getCategory();
-            String imageUrl;
-
-            if (dto.getImageUrl() != null) {
-                policy.setImageUrl(dto.getImageUrl());
+        String categoryName = category != null ? category.getCategory() : null;
+        String imageUrl = dto.getImageUrl();
+        if (imageUrl == null || imageUrl.trim().isEmpty()) {
+            if ("ITB".equalsIgnoreCase(categoryName)) {
+                imageUrl = "/policy/ITB.jpeg";
+            } else if ("National".equalsIgnoreCase(categoryName)) {
+                imageUrl = "/policy/National.jpg";
+            } else if ("International".equalsIgnoreCase(categoryName)) {
+                imageUrl = "/policy/International.jpg";
             } else {
-                if ("ITB".equalsIgnoreCase(categoryName)) {
-                    imageUrl = "/policy/ITB.jpeg";
-                } else if ("National".equalsIgnoreCase(categoryName)) {
-                    imageUrl = "/policy/National.jpg";
-                } else if ("International".equalsIgnoreCase(categoryName)) {
-                    imageUrl = "/policy/International.jpg";
-                } else {
-                    imageUrl = "/policy/Policy.jpg";
-                }
-
-                policy.setImageUrl(imageUrl);
-            }
-        } else {
-            // If no category, fallback image
-            if (dto.getImageUrl() != null) {
-                policy.setImageUrl(dto.getImageUrl());
-            } else {
-                policy.setImageUrl("/policy/Policy.jpg");
+                imageUrl = "/policy/Policy.jpg";
             }
         }
+        policy.setImageUrl(imageUrl);
 
         Policy savedPolicy = policyRepository.saveAndFlush(policy);
 
@@ -103,11 +93,8 @@ public class PolicyServiceImpl implements PolicyService {
                 .orElseThrow(() -> new DataNotFoundException("Category not found"));
 
         String categoryName = category.getCategory();
-        String imageUrl;
-
-        if (existing.getImageUrl() != null) {
-            existing.setImageUrl(dto.getImageUrl());
-        } else {
+        String imageUrl = dto.getImageUrl();
+        if (imageUrl == null || imageUrl.trim().isEmpty()) {
             if ("ITB".equalsIgnoreCase(categoryName)) {
                 imageUrl = "/policy/ITB.jpeg";
             } else if ("National".equalsIgnoreCase(categoryName)) {
@@ -117,9 +104,8 @@ public class PolicyServiceImpl implements PolicyService {
             } else {
                 imageUrl = "/policy/Policy.jpg";
             }
-
-            existing.setImageUrl(imageUrl);
         }
+        existing.setImageUrl(imageUrl);
 
         // Goals
         if (dto.getGoalIds() != null && !dto.getGoalIds().isEmpty()) {
