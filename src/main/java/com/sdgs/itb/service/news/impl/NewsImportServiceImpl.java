@@ -91,25 +91,32 @@ public class NewsImportServiceImpl implements NewsImportService {
         // ---- Category mapping ----
         String scholarName = dto.getScholarName().toLowerCase();
         NewsCategory category;
-        if (scholarName.equals("project") || scholarName.equals("paper") || scholarName.equals("patent") || scholarName.equals("thesis")) {
-            category = categoryCache.get("publication, research & paper");
-            newNews.setContent(dto.getAbstractText());
-            switch (scholarName) {
-                case "project" -> {
-                    newNews.setSourceUrl("https://scholar.itb.ac.id/project_detail/" + dto.getUrl());
-                    newNews.setThumbnailUrl("/news/project.jpg");
-                }
-                case "paper" -> {
-                    newNews.setSourceUrl("https://scholar.itb.ac.id/paper_detail/" + dto.getUrl());
-                    newNews.setThumbnailUrl("/news/paper.jpeg");
-                }
-                case "patent" -> {
-                    newNews.setSourceUrl("https://scholar.itb.ac.id/patent_detail/" + dto.getUrl());
-                    newNews.setThumbnailUrl("/news/patent.jpg");
-                }
-                case "thesis" -> {
-                    newNews.setSourceUrl("https://scholar.itb.ac.id/thesis_detail/" + dto.getUrl());
-                    newNews.setThumbnailUrl("/news/thesis.jpeg");
+        if (!scholarName.equals("outreach")) {
+            if (scholarName.equals("project") && dto.getType().equals("pengabdian")) {
+                category = categoryCache.get("community service");
+                newNews.setContent(dto.getAbstractText());
+                newNews.setSourceUrl("https://scholar.itb.ac.id/project_detail/" + dto.getUrl());
+                newNews.setThumbnailUrl("/news/community-service.jpg");
+            } else {
+                category = categoryCache.get("publication, research & paper");
+                newNews.setContent(dto.getAbstractText());
+                switch (scholarName) {
+                    case "project" -> {
+                        newNews.setSourceUrl("https://scholar.itb.ac.id/project_detail/" + dto.getUrl());
+                        newNews.setThumbnailUrl("/news/project.jpg");
+                    }
+                    case "paper" -> {
+                        newNews.setSourceUrl("https://scholar.itb.ac.id/paper_detail/" + dto.getUrl());
+                        newNews.setThumbnailUrl("/news/paper.jpeg");
+                    }
+                    case "patent" -> {
+                        newNews.setSourceUrl("https://scholar.itb.ac.id/paten_detail/" + dto.getUrl());
+                        newNews.setThumbnailUrl("/news/patent.jpg");
+                    }
+                    case "thesis" -> {
+                        newNews.setSourceUrl("https://scholar.itb.ac.id/thesis_detail/" + dto.getUrl());
+                        newNews.setThumbnailUrl("/news/thesis.jpeg");
+                    }
                 }
             }
         } else {

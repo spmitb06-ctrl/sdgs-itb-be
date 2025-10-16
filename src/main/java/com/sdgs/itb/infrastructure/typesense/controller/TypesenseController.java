@@ -40,7 +40,7 @@ public class TypesenseController {
             "GOAL 13: Climate Action",
             "GOAL 14: Life Below Water",
             "GOAL 15: Life on Land",
-            "GOAL 16: Peace and Justice Strong Institutions",
+            "GOAL 16: Peace, Justice and Strong Institutions",
             "GOAL 17: Partnership for the Goal"
     };
 
@@ -97,5 +97,16 @@ public class TypesenseController {
         typesenseService.streamExport(table, response);
     }
 
+    @GetMapping("/types")
+    public ResponseEntity<ApiResponse<Set<String>>> getTypesByCollection(
+            @RequestParam String collection
+    ) {
+        Set<String> types = typesenseService.getTypesByCollection(collection);
+        return ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Fetched all unique 'type' values for collection: " + collection,
+                types
+        );
+    }
 }
 

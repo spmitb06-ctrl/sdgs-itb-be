@@ -16,6 +16,7 @@ public class TypesenseNewsExportDTO {
     private String scholarName;
     private String image;
     private String year;
+    private String type;
 
     private List<Long> organizations;
 }
