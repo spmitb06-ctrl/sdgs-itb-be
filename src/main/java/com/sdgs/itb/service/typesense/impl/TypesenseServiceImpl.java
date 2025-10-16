@@ -74,39 +74,36 @@ public class TypesenseServiceImpl implements TypesenseService {
             int importedCount = 0;
             boolean hasMore = true;
 
-            // cutoff timestamp = 2024-01-01 UTC
-            LocalDate cutoffDate = LocalDate.of(2024, 1, 1);
+            int cutoffYear = 2024;
 
-            // formatter for "start" field in project collection (e.g. "5 January 2024")
             DateTimeFormatter formatter = new DateTimeFormatterBuilder()
                     .parseCaseInsensitive()
-                    .appendPattern("d MMMM uuuu")   // 5 January 2024
+                    .appendPattern("d MMMM uuuu")
                     .optionalStart()
-                    .appendPattern("d MMM uuuu")    // 5 Jan 2024
+                    .appendPattern("d MMM uuuu")
                     .optionalEnd()
                     .toFormatter(Locale.ENGLISH);
 
             while (importedCount < importLimit && hasMore) {
                 URI uri;
-                if (collection.equals("project")) {
+                if (collection.equals("project") || collection.equals("outreach")) {
                     uri = new URI(url + "?q=*&per_page=" + perPage + "&page=" + page +
-                            "&include_fields=abstract,sdg,title,slug,start,year,organization");
+                            "&include_fields=abstract,sdg,title,slug,start,year,organization,type");
+                } else if (collection.equals("patent")) {
+                    uri = new URI(url + "?q=*&per_page=" + perPage + "&page=" + page +
+                            "&include_fields=abstract,sdg,title,slug,date,year,organization,type");
                 } else {
                     uri = new URI(url + "?q=*&per_page=" + perPage + "&page=" + page +
-                            "&include_fields=abstract,sdg,title,slug,_ts,year,organization");
+                            "&include_fields=abstract,sdg,title,slug,year,organization");
                 }
 
                 HttpHeaders headers = new HttpHeaders();
                 headers.set("X-TYPESENSE-API-KEY", apiKey);
                 HttpEntity<Void> request = new HttpEntity<>(headers);
 
-                ResponseEntity<Map> response = restTemplate.exchange(
-                        uri, HttpMethod.GET, request, Map.class
-                );
+                ResponseEntity<Map> response = restTemplate.exchange(uri, HttpMethod.GET, request, Map.class);
 
-                if (response.getBody() == null || response.getBody().get("hits") == null) {
-                    break; // no more data
-                }
+                if (response.getBody() == null || response.getBody().get("hits") == null) break;
 
                 List<Map<String, Object>> hits = (List<Map<String, Object>>) response.getBody().get("hits");
                 if (hits.isEmpty()) break;
@@ -121,32 +118,56 @@ public class TypesenseServiceImpl implements TypesenseService {
                     String title = (String) doc.get("title");
                     String slug = (String) doc.get("slug");
 
+                    int year = 0;
                     Object yearObj = doc.get("year");
-                    String year = (yearObj != null) ? String.valueOf(yearObj) : null;
+                    if (yearObj != null) {
+                        try {
+                            year = Integer.parseInt(String.valueOf(yearObj).trim());
+                        } catch (NumberFormatException ignored) {}
+                    }
+                    if (year < cutoffYear) continue;
 
                     List<String> sdg = (List<String>) doc.get("sdg");
-
-                    // ✅ Parse LocalDate instead of OffsetDateTime
-                    LocalDate eventDate = null;
-                    if (collection.equals("project")) {
-                        String startStr = (String) doc.get("start");
-                        if (startStr == null || startStr.trim().isEmpty()) continue;
-                        try {
-                            LocalDate parsed = LocalDate.parse(startStr.trim(), formatter);
-                            if (parsed.isBefore(cutoffDate)) continue;
-                            eventDate = parsed;
-                        } catch (DateTimeParseException e) {
-                            System.out.println("Skipping invalid start date: " + startStr);
-                            continue;
-                        }
-                    } else {
-                        Long ts = ((Number) doc.getOrDefault("_ts", 0L)).longValue();
-                        if (ts == 0L) continue;
-                        eventDate = Instant.ofEpochSecond(ts).atZone(ZoneOffset.UTC).toLocalDate();
-                        if (eventDate.isBefore(cutoffDate)) continue;
+                    if (sdg != null) {
+                        sdg.replaceAll(goal -> {
+                            if (goal != null && goal.trim().equalsIgnoreCase("GOAL 16: Peace and Justice Strong Institutions")) {
+                                return "GOAL 16: Peace, Justice and Strong Institutions";
+                            }
+                            return goal;
+                        });
                     }
 
-                    // ✅ Parse organizations (only <= 12)
+                    String type = (String) doc.get("type");
+                    LocalDate eventDate = null;
+
+                    // Parse normal date for specific collections
+                    String dateStr = null;
+                    if (collection.equals("project")) {
+                        dateStr = (String) doc.get("start");
+                    } else if (collection.equals("patent")) {
+                        dateStr = (String) doc.get("date");
+                    }
+
+                    if (dateStr != null && !dateStr.trim().isEmpty()) {
+                        try {
+                            eventDate = LocalDate.parse(dateStr.trim(), formatter);
+                        } catch (DateTimeParseException ignored) {}
+                    }
+
+                    // For paper or thesis → set eventDate from Year (1st Jan)
+                    if ((collection.equals("paper") || collection.equals("thesis")) && year > 0) {
+                        eventDate = LocalDate.of(year, 1, 1);
+                    }
+
+                    // Wrap abstractText in <p>...</p> for paper/thesis
+                    if ((collection.equals("paper") || collection.equals("thesis")) && abstractText != null && !abstractText.trim().isEmpty()) {
+                        String trimmed = abstractText.trim();
+                        if (!trimmed.startsWith("<p>")) {
+                            abstractText = "<p>" + trimmed + "</p>";
+                        }
+                    }
+
+                    // Parse organizations (<= 12 only)
                     List<String> orgStrings = (List<String>) doc.get("organization");
                     List<Long> organizations = new ArrayList<>();
                     if (orgStrings != null) {
@@ -158,35 +179,31 @@ public class TypesenseServiceImpl implements TypesenseService {
                         }
                     }
 
-                    // ✅ Skip invalid entries
-                    if (abstractText == null || abstractText.trim().isEmpty()
-                            || title == null || title.trim().isEmpty()
-                            || slug == null || slug.trim().isEmpty()
-                            || sdg == null || sdg.isEmpty()) {
-                        continue;
-                    }
+                    boolean invalid =
+                            (title == null || title.trim().isEmpty()) ||
+                                    (slug == null || slug.trim().isEmpty()) ||
+                                    (sdg == null || sdg.isEmpty()) ||
+                                    (!"patent".equals(collection) && (abstractText == null || abstractText.trim().isEmpty()));
 
-                    // ✅ Build DTO
+                    if (invalid) continue;
+
                     TypesenseNewsExportDTO dto = new TypesenseNewsExportDTO();
                     dto.setAbstractText(abstractText);
                     dto.setTitle(title);
                     dto.setUrl(slug);
                     dto.setSdg(sdg);
-                    dto.setDateTime(eventDate);  // <-- LocalDate
+                    dto.setDateTime(eventDate);
                     dto.setScholarName(collection);
-                    dto.setYear(year);
+                    dto.setYear(String.valueOf(year));
                     dto.setOrganizations(organizations);
+                    dto.setType(type);
 
-                    // ✅ Import via service
                     newsImportService.importFromTypesense(dto);
                     importedCount++;
                 }
 
-                if (hits.size() < perPage) {
-                    hasMore = false;
-                } else {
-                    page++;
-                }
+                hasMore = hits.size() >= perPage;
+                page++;
             }
 
             System.out.println("✅ Imported " + importedCount + " records from Typesense [" + collection + "]");
@@ -250,5 +267,56 @@ public class TypesenseServiceImpl implements TypesenseService {
         } catch (Exception e) {
             throw new RuntimeException("Error while streaming export: " + e.getMessage(), e);
         }
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Set<String> getTypesByCollection(String collection) {
+        if (collection == null || collection.trim().isEmpty()) {
+            throw new IllegalArgumentException("Collection name must not be empty");
+        }
+
+        Set<String> types = new HashSet<>();
+
+        try {
+            String url = baseUrl + "/" + collection + "/documents/search";
+            int page = 1;
+            int perPage = 200;
+            boolean hasMore = true;
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("X-TYPESENSE-API-KEY", apiKey);
+            HttpEntity<Void> request = new HttpEntity<>(headers);
+
+            while (hasMore) {
+                URI uri = new URI(url + "?q=*&per_page=" + perPage + "&page=" + page + "&include_fields=type");
+
+                ResponseEntity<Map> response = restTemplate.exchange(uri, HttpMethod.GET, request, Map.class);
+                if (response.getBody() == null || response.getBody().get("hits") == null) break;
+
+                List<Map<String, Object>> hits = (List<Map<String, Object>>) response.getBody().get("hits");
+                if (hits.isEmpty()) break;
+
+                for (Map<String, Object> hit : hits) {
+                    Map<String, Object> doc = (Map<String, Object>) hit.get("document");
+                    if (doc != null && doc.get("type") != null) {
+                        types.add(doc.get("type").toString().trim());
+                    }
+                }
+
+                int found = ((Number) response.getBody().getOrDefault("found", 0)).intValue();
+                if (page * perPage >= found) {
+                    hasMore = false;
+                } else {
+                    page++;
+                }
+            }
+
+            System.out.println("Found " + types.size() + " unique 'type' values from collection: " + collection);
+        } catch (Exception e) {
+            throw new RuntimeException("Error while fetching types from collection '" + collection + "': " + e.getMessage(), e);
+        }
+
+        return types;
     }
 }

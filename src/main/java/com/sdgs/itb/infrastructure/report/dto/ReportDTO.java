@@ -16,6 +16,7 @@ public class ReportDTO {
     private String fileUrl;
     private String year;
     private String imageUrl;
+    private String sourceUrl;
     private Long categoryId;
     private String categoryName;
     private String categoryColor;
