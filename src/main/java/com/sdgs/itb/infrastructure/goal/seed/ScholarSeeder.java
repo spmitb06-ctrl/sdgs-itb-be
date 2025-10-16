@@ -18,11 +18,11 @@ public class ScholarSeeder implements CommandLineRunner {
     public void run(String... args) {
         if (scholarRepository.count() == 0) {
             scholarRepository.saveAll(List.of(
-                    Scholar.builder().name("paper").build(),
-                    Scholar.builder().name("project").build(),
-                    Scholar.builder().name("patent").build(),
-                    Scholar.builder().name("outreach").build(),
-                    Scholar.builder().name("thesis").build()
+                    Scholar.builder().name("paper").iconUrl("/news/icons/paper.svg").build(),
+                    Scholar.builder().name("project").iconUrl("/news/icons/project.svg").build(),
+                    Scholar.builder().name("patent").iconUrl("/news/icons/patent.svg").build(),
+                    Scholar.builder().name("outreach").iconUrl("/news/icons/community-service.svg").build(),
+                    Scholar.builder().name("thesis").iconUrl("/news/icons/thesis.svg").build()
             ));
         }
     }

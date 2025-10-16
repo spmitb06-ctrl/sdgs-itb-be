@@ -24,6 +24,9 @@ public class Scholar {
     @Column(nullable = false, unique = true)
     private String name;
 
+    @Column(name="icon_url")
+    private String iconUrl;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 

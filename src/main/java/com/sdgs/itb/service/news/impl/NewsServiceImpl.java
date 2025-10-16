@@ -264,7 +264,6 @@ public class NewsServiceImpl implements NewsService {
     public Page<NewsDTO> getNews(
             String title,
             List<Long> goalIds,
-//            Long categoryId,
             List<Long> categoryIds,
             List<Long> scholarIds,
             List<Long> unitIds,
@@ -281,7 +280,6 @@ public class NewsServiceImpl implements NewsService {
                 .where(NewsSpecification.notDeleted())
                 .and(NewsSpecification.hasTitle(title))
                 .and(NewsSpecification.hasGoal(goalIds))
-//                .and(NewsSpecification.hasCategory(categoryId))
                 .and(NewsSpecification.hasCategories(categoryIds))
                 .and(NewsSpecification.hasScholars(scholarIds))
                 .and(NewsSpecification.hasUnit(unitIds))

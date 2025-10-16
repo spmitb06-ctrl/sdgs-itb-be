@@ -30,6 +30,9 @@ public class ReportCategory {
     @Column
     private String color;
 
+    @Column(name="icon_url")
+    private String iconUrl;
+
     @Column(name = "deleted_at")
     private OffsetDateTime deletedAt;
 

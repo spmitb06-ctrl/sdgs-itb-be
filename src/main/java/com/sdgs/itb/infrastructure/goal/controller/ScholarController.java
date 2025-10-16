@@ -28,6 +28,23 @@ public class ScholarController {
         );
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<ScholarDTO>> getOne(@PathVariable Long id) {
+        try {
+            ScholarDTO scholar = scholarService.getScholar(id);
+            return ApiResponse.success(
+                    HttpStatus.OK.value(),
+                    "Scholar fetched successfully",
+                    scholar
+            );
+        } catch (Exception e) {
+            return ApiResponse.failed(
+                    HttpStatus.NOT_FOUND.value(),
+                    e.getMessage()
+            );
+        }
+    }
+
     @PostMapping
     public ResponseEntity<ApiResponse<ScholarDTO>> create(@RequestBody ScholarDTO dto) {
         ScholarDTO created = scholarService.createScholar(dto);
