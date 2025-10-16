@@ -38,6 +38,9 @@ public class Policy {
     @Column(name="image_url")
     private String imageUrl;
 
+    @Column(name = "source_url")
+    private String sourceUrl;
+
     @Column(name = "deleted_at")
     private OffsetDateTime deletedAt;
 

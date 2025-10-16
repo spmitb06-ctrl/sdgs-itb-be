@@ -88,6 +88,7 @@ public class PolicyServiceImpl implements PolicyService {
         existing.setDescription(dto.getDescription());
         existing.setFileUrl(dto.getFileUrl());
         existing.setYear(dto.getYear());
+        existing.setSourceUrl(dto.getSourceUrl());
 
         PolicyCategory category = categoryRepository.findById(dto.getCategoryId())
                 .orElseThrow(() -> new DataNotFoundException("Category not found"));
@@ -175,6 +176,7 @@ public class PolicyServiceImpl implements PolicyService {
         Specification<Policy> spec = Specification
                 .where(PolicySpecification.notDeleted())
                 .and(PolicySpecification.hasTitle(title))
+                .and(PolicySpecification.hasGoal(goalIds))
                 .and(PolicySpecification.hasYear(year))
                 .and(PolicySpecification.hasCategories(categoryIds));
 
