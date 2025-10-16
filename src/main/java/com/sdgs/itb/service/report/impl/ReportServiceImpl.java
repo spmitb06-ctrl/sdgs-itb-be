@@ -72,6 +72,7 @@ public class ReportServiceImpl implements ReportService {
         existing.setDescription(dto.getDescription());
         existing.setFileUrl(dto.getFileUrl());
         existing.setYear(dto.getYear());
+        existing.setSourceUrl(dto.getSourceUrl());
 
         ReportCategory category = categoryRepository.findById(dto.getCategoryId())
                 .orElseThrow(() -> new DataNotFoundException("Category not found"));

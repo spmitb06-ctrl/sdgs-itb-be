@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import java.util.Optional;
 
 public interface DataRepository extends JpaRepository<Data, Long>, JpaSpecificationExecutor<Data> {
+
     @Query("SELECT a FROM Data a WHERE LOWER(a.sourceUrl) = LOWER(:url)")
     Optional<Data> findBySourceUrl(@Param("url") String url);
 

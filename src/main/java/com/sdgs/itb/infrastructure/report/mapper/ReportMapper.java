@@ -11,6 +11,7 @@ public class ReportMapper {
         report.setFileUrl(dto.getFileUrl());
         report.setYear(dto.getYear());
         report.setImageUrl(dto.getImageUrl());
+        report.setSourceUrl(dto.getSourceUrl());
 
         return report;
     }
@@ -23,6 +24,7 @@ public class ReportMapper {
         dto.setFileUrl(report.getFileUrl());
         dto.setYear(report.getYear());
         dto.setImageUrl(report.getImageUrl());
+        dto.setSourceUrl(report.getSourceUrl());
 
         if (report.getReportCategory() != null) {
             dto.setCategoryId(report.getReportCategory().getId());

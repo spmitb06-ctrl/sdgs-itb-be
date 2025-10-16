@@ -142,7 +142,7 @@ public class TypesenseServiceImpl implements TypesenseService {
 
                     // Parse normal date for specific collections
                     String dateStr = null;
-                    if (collection.equals("project")) {
+                    if (collection.equals("project") || collection.equals("outreach")) {
                         dateStr = (String) doc.get("start");
                     } else if (collection.equals("patent")) {
                         dateStr = (String) doc.get("date");

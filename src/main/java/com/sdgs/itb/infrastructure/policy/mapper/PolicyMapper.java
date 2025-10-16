@@ -19,6 +19,7 @@ public class PolicyMapper {
         policy.setFileUrl(dto.getFileUrl());
         policy.setYear(dto.getYear());
         policy.setImageUrl(dto.getImageUrl());
+        policy.setSourceUrl(dto.getSourceUrl());
 
         return policy;
     }
@@ -31,6 +32,7 @@ public class PolicyMapper {
         dto.setFileUrl(policy.getFileUrl());
         dto.setYear(policy.getYear());
         dto.setImageUrl(policy.getImageUrl());
+        dto.setSourceUrl(policy.getSourceUrl());
 
         dto.setPolicyGoals(policy.getPolicyGoals().stream()
                 .map(PolicyMapper::toPolicyGoalDTO)
