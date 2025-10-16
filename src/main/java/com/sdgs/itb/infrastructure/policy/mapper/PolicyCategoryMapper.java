@@ -8,6 +8,7 @@ public class PolicyCategoryMapper {
         PolicyCategory policyCategory = new PolicyCategory();
         policyCategory.setCategory(dto.getCategory());
         policyCategory.setColor(dto.getColor());
+        policyCategory.setIconUrl(dto.getIconUrl());
 
         return policyCategory;
     }
@@ -17,6 +18,7 @@ public class PolicyCategoryMapper {
                 .id(policyCategory.getId())
                 .category(policyCategory.getCategory())
                 .color((policyCategory.getColor()))
+                .iconUrl(policyCategory.getIconUrl())
                 .build();
     }
 }

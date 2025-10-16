@@ -18,9 +18,9 @@ public class ReportCategoryDataSeeder implements CommandLineRunner {
     public void run(String... args) {
         if (reportCategoryRepository.count() == 0) {
             List<ReportCategory> categories = List.of(
-                    ReportCategory.builder().category("SDG").color("#2563EB").build(),
-                    ReportCategory.builder().category("ESG").color("#16A34A").build(),
-                    ReportCategory.builder().category("Other").color("#6B7280").build()
+                    ReportCategory.builder().category("SDG").color("#2563EB").iconUrl("/report/icons/sdgs-wheel-logo.svg").build(),
+                    ReportCategory.builder().category("ESG").color("#16A34A").iconUrl("/report/icons/esg.svg").build(),
+                    ReportCategory.builder().category("Other").color("#6B7280").iconUrl("/report/icons/other.svg").build()
             );
             reportCategoryRepository.saveAll(categories);
             System.out.println("✅ Report Category data seeded successfully!");

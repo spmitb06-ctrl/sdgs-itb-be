@@ -8,6 +8,7 @@ public class ReportCategoryMapper {
         ReportCategory reportCategory = new ReportCategory();
         reportCategory.setCategory(dto.getCategory());
         reportCategory.setColor(dto.getColor());
+        reportCategory.setIconUrl(dto.getIconUrl());
 
         return reportCategory;
     }
@@ -17,6 +18,7 @@ public class ReportCategoryMapper {
                 .id(reportCategory.getId())
                 .category(reportCategory.getCategory())
                 .color(reportCategory.getColor())
+                .iconUrl(reportCategory.getIconUrl())
                 .build();
     }
 }

@@ -43,7 +43,6 @@ public class NewsMapper {
         dto.setThumbnailUrl(news.getThumbnailUrl());
         dto.setSourceUrl(news.getSourceUrl());
         dto.setEventDate(news.getEventDate());
-        dto.setCreatedAt(news.getCreatedAt());
 
         dto.setImageUrls(news.getImages().stream()
                 .map(NewsImage::getImageUrl)
@@ -65,6 +64,7 @@ public class NewsMapper {
         if (news.getScholar() != null) {
             dto.setScholarId(news.getScholar().getId());
             dto.setScholarName(news.getScholar().getName());
+            dto.setScholarIcon(news.getScholar().getIconUrl());
         }
 
         return dto;

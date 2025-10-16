@@ -13,5 +13,6 @@ public class PolicyCategoryDTO {
     private Long id;
     private String category;
     private String color;
+    private String iconUrl;
 }
 

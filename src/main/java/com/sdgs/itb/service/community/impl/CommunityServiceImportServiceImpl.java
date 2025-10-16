@@ -2,11 +2,13 @@ package com.sdgs.itb.service.community.impl;
 
 import com.sdgs.itb.common.exceptions.DataNotFoundException;
 import com.sdgs.itb.entity.goal.Goal;
+import com.sdgs.itb.entity.goal.Scholar;
 import com.sdgs.itb.entity.news.News;
 import com.sdgs.itb.entity.news.NewsCategory;
 import com.sdgs.itb.entity.unit.Unit;
 import com.sdgs.itb.infrastructure.community.dto.CommunityServiceImportDTO;
 import com.sdgs.itb.infrastructure.goal.repository.GoalRepository;
+import com.sdgs.itb.infrastructure.goal.repository.ScholarRepository;
 import com.sdgs.itb.infrastructure.news.repository.NewsCategoryRepository;
 import com.sdgs.itb.infrastructure.news.repository.NewsRepository;
 import com.sdgs.itb.infrastructure.unit.repository.UnitRepository;
@@ -31,11 +33,13 @@ public class CommunityServiceImportServiceImpl implements CommunityServiceImport
     private final NewsCategoryRepository newsCategoryRepository;
     private final GoalRepository goalRepository;
     private final UnitRepository unitRepository;
+    private final ScholarRepository scholarRepository;
 
     private final RestTemplate restTemplate = new RestTemplate();
 
     private final Map<String, Goal> goalCache = new HashMap<>();
     private final Map<String, NewsCategory> categoryCache = new HashMap<>();
+    private final Map<String, Scholar> scholarCache = new HashMap<>();
 
     @Override
     public int importSample(int limit) {
@@ -55,6 +59,10 @@ public class CommunityServiceImportServiceImpl implements CommunityServiceImport
             }
             if (categoryCache.isEmpty()) {
                 newsCategoryRepository.findAll().forEach(cat -> categoryCache.put(cat.getCategory().toLowerCase(), cat));
+            }
+
+            if (scholarCache.isEmpty()) {
+                scholarRepository.findAll().forEach(scholar -> scholarCache.put(scholar.getName().toLowerCase(), scholar));
             }
 
             NewsCategory communityCategory = categoryCache.get("community service");
@@ -163,6 +171,9 @@ public class CommunityServiceImportServiceImpl implements CommunityServiceImport
         news.setContent(dto.getContent());
         news.setThumbnailUrl(dto.getImage());
         news.setSourceUrl(dto.getSourceUrl());
+
+        Scholar outreach = scholarCache.get("outreach");
+        news.setScholar(outreach);
 
         NewsCategory communityCategory = categoryCache.get("community service");
         news.setNewsCategory(communityCategory);
