@@ -2,9 +2,12 @@ package com.sdgs.itb.infrastructure.news.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sdgs.itb.common.responses.ApiResponse;
+import com.sdgs.itb.infrastructure.news.dto.NewsCategoryStatsDTO;
 import com.sdgs.itb.infrastructure.news.dto.NewsDTO;
+import com.sdgs.itb.infrastructure.news.dto.NewsGoalStatsDTO;
 import com.sdgs.itb.service.cloudinary.CloudinaryService;
 import com.sdgs.itb.service.news.NewsService;
+import com.sdgs.itb.service.news.NewsStatsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -23,6 +26,7 @@ import java.util.List;
 public class NewsController {
 
     private final NewsService newsService;
+    private final NewsStatsService newsStatsService;
     private final CloudinaryService cloudinaryService;
     private final ObjectMapper objectMapper;
 
@@ -110,7 +114,6 @@ public class NewsController {
     public ResponseEntity<ApiResponse<Page<NewsDTO>>> getAll(
             @RequestParam(required = false) String title,
             @RequestParam(required = false) String goalIds,     // comma-separated
-//            @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) String categoryIds, // comma-separated
             @RequestParam(required = false) String scholarIds, // comma-separated
             @RequestParam(required = false) String unitIds,  // comma-separated
@@ -142,7 +145,6 @@ public class NewsController {
                 newsService.getNews(
                         title,
                         goalIdList,
-//                        categoryId,
                         categoryIdList,
                         scholarIdList,
                         unitIdList,
@@ -155,6 +157,39 @@ public class NewsController {
         );
     }
 
+    @GetMapping("/stats/goals")
+    public ResponseEntity<ApiResponse<List<NewsGoalStatsDTO>>> getNewsStatsByGoal(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Long categoryId
+    ) {
+        try {
+            List<NewsGoalStatsDTO> stats = newsStatsService.getNewsStatsByGoal(year, categoryId);
+            return ApiResponse.success(
+                    HttpStatus.OK.value(),
+                    "News statistics by goal fetched successfully",
+                    stats
+            );
+        } catch (Exception e) {
+            return ApiResponse.failed(HttpStatus.INTERNAL_SERVER_ERROR.value(), e.getMessage());
+        }
+    }
+
+    @GetMapping("/stats/categories")
+    public ResponseEntity<ApiResponse<List<NewsCategoryStatsDTO>>> getNewsStatsByCategory(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Long goalId
+    ) {
+        try {
+            List<NewsCategoryStatsDTO> stats = newsStatsService.getNewsStatsByCategory(year, goalId);
+            return ApiResponse.success(
+                    HttpStatus.OK.value(),
+                    "News statistics by category fetched successfully",
+                    stats
+            );
+        } catch (Exception e) {
+            return ApiResponse.failed(HttpStatus.INTERNAL_SERVER_ERROR.value(), e.getMessage());
+        }
+    }
 }
 
 

@@ -20,4 +20,5 @@ public class ReportDTO {
     private Long categoryId;
     private String categoryName;
     private String categoryColor;
+    private String categoryIcon;
 }

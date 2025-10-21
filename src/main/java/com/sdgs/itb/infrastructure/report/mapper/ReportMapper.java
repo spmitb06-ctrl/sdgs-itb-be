@@ -30,6 +30,7 @@ public class ReportMapper {
             dto.setCategoryId(report.getReportCategory().getId());
             dto.setCategoryName(report.getReportCategory().getCategory());
             dto.setCategoryColor(report.getReportCategory().getColor());
+            dto.setCategoryIcon(report.getReportCategory().getIconUrl());
         }
 
         return dto;
