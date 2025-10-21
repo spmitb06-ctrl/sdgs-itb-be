@@ -22,6 +22,7 @@ public class PolicyDTO {
     private Long categoryId;
     private String categoryName;
     private String categoryColor;
+    private String categoryIcon;
     private List<Long> goalIds;
 
     private List<PolicyGoalDTO> policyGoals;

@@ -19,7 +19,6 @@ public class NewsDTO {
     private String thumbnailUrl;
     private String sourceUrl;
     private List<String> imageUrls;
-    private String scholarYear;
 
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate eventDate;
@@ -31,6 +30,7 @@ public class NewsDTO {
     private Long scholarId;
     private String scholarName;
     private String scholarIcon;
+    private String scholarYear;
 
     private List<NewsCategoryDTO> newsCategories;
     private List<NewsGoalDTO> newsGoals;

@@ -1,6 +1,5 @@
 package com.sdgs.itb.entity.report;
 
-import com.sdgs.itb.entity.report.Report;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;

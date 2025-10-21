@@ -42,6 +42,7 @@ public class PolicyMapper {
             dto.setCategoryId(policy.getPolicyCategory().getId());
             dto.setCategoryName(policy.getPolicyCategory().getCategory());
             dto.setCategoryColor(policy.getPolicyCategory().getColor());
+            dto.setCategoryIcon(policy.getPolicyCategory().getIconUrl());
         }
 
         return dto;

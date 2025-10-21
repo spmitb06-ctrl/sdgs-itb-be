@@ -65,6 +65,7 @@ public class NewsMapper {
             dto.setScholarId(news.getScholar().getId());
             dto.setScholarName(news.getScholar().getName());
             dto.setScholarIcon(news.getScholar().getIconUrl());
+            dto.setScholarYear(news.getScholarYear());
         }
 
         return dto;

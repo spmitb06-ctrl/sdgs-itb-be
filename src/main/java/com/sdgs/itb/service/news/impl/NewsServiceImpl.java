@@ -141,6 +141,7 @@ public class NewsServiceImpl implements NewsService {
             Scholar scholar = scholarRepository.findById(dto.getScholarId())
                     .orElseThrow(() -> new DataNotFoundException("Scholar not found"));
             existing.setScholar(scholar);
+            existing.setScholarYear(dto.getScholarYear());
         }
 
         // Units

@@ -56,7 +56,13 @@ public class DataSpecification {
             }
             try {
                 int yearInt = Integer.parseInt(year);
-                return cb.equal(cb.function("YEAR", Integer.class, root.get("eventDate")), yearInt);
+                // Works for PostgreSQL
+                return cb.equal(
+                        cb.function("date_part", Integer.class,
+                                cb.literal("year"),
+                                root.get("eventDate")),
+                        yearInt
+                );
             } catch (NumberFormatException e) {
                 return cb.conjunction();
             }

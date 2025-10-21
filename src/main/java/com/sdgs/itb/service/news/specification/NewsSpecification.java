@@ -28,17 +28,6 @@ public class NewsSpecification {
         };
     }
 
-//    public static Specification<News> hasCategory(Long categoryId) {
-//        return (root, query, cb) -> {
-//            if (categoryId == null) {
-//                return cb.conjunction();
-//            }
-//            assert query != null;
-//            query.distinct(true);
-//            return root.join("newsCategory").get("id").in(List.of(categoryId));
-//        };
-//    }
-
     public static Specification<News> hasCategories(List<Long> categoryIds) {
         return (root, query, cb) -> {
             if (categoryIds == null || categoryIds.isEmpty()) {
@@ -76,11 +65,18 @@ public class NewsSpecification {
             }
             try {
                 int yearInt = Integer.parseInt(year);
-                return cb.equal(cb.function("YEAR", Integer.class, root.get("eventDate")), yearInt);
+                // Works for PostgreSQL
+                return cb.equal(
+                        cb.function("date_part", Integer.class,
+                                cb.literal("year"),
+                                root.get("eventDate")),
+                        yearInt
+                );
             } catch (NumberFormatException e) {
                 return cb.conjunction();
             }
         };
     }
+
 
 }
