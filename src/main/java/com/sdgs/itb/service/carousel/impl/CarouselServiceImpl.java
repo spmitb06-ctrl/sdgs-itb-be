@@ -68,6 +68,7 @@ public class CarouselServiceImpl implements CarouselService {
         existing.setSubtitle(dto.getSubtitle());
         existing.setSourceUrl(dto.getSourceUrl());
         existing.setImageUrl(dto.getImageUrl());
+        existing.setCropData(dto.getCropData());
 
         CarouselCategory category = categoryRepository.findById(dto.getCategoryId())
                 .orElseThrow(() -> new DataNotFoundException("Category not found"));

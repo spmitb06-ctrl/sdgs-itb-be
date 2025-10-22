@@ -1,12 +1,12 @@
 package com.sdgs.itb.infrastructure.carousel.dto;
 
-import com.sdgs.itb.infrastructure.carousel.dto.CarouselGoalDTO;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.Map;
 
 @Data
 @Builder
@@ -18,6 +18,7 @@ public class CarouselDTO {
     private String subtitle;
     private String imageUrl;
     private String sourceUrl;
+    private Map<String, Object> cropData;
     private Long categoryId;
     private String categoryName;
     private String categoryColor;

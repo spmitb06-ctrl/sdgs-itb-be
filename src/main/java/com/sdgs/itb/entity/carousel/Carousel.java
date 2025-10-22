@@ -1,12 +1,17 @@
 package com.sdgs.itb.entity.carousel;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.sdgs.itb.common.converter.JsonNodeConverter;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import org.hibernate.annotations.ColumnDefault;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -35,6 +40,10 @@ public class Carousel {
 
     @Column(name = "source_url")
     private String sourceUrl;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private Map<String, Object> cropData;
 
     @Column(name = "deleted_at")
     private OffsetDateTime deletedAt;
