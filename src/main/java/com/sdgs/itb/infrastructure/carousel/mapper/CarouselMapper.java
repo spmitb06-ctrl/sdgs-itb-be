@@ -1,5 +1,7 @@
 package com.sdgs.itb.infrastructure.carousel.mapper;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sdgs.itb.entity.goal.Goal;
 import com.sdgs.itb.entity.carousel.Carousel;
 import com.sdgs.itb.entity.carousel.CarouselGoal;
@@ -10,12 +12,16 @@ import com.sdgs.itb.infrastructure.carousel.dto.CarouselGoalDTO;
 import java.util.stream.Collectors;
 
 public class CarouselMapper {
+
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+
     public static Carousel toEntity(CarouselDTO dto) {
         Carousel carousel = new Carousel();
         carousel.setTitle(dto.getTitle());
         carousel.setSubtitle(dto.getSubtitle());
         carousel.setImageUrl(dto.getImageUrl());
         carousel.setSourceUrl(dto.getSourceUrl());
+        carousel.setCropData(dto.getCropData());
 
         return carousel;
     }
@@ -27,6 +33,7 @@ public class CarouselMapper {
         dto.setSubtitle(carousel.getSubtitle());
         dto.setImageUrl(carousel.getImageUrl());
         dto.setSourceUrl(carousel.getSourceUrl());
+        dto.setCropData(carousel.getCropData());
 
         dto.setCarouselGoals(carousel.getCarouselGoals().stream()
                 .map(CarouselMapper::toCarouselGoalDTO)
