@@ -15,7 +15,7 @@ public class CorsConfigurationSourceImpl implements CorsConfigurationSource {
         corsConfiguration.setAllowedOriginPatterns(List.of(
                 "http://localhost:3001", "http://localhost:3000",
                 "http://0.0.0.0:3000", "http://host.docker.internal:3000",
-                "https://sdgs-itb-fe-sample.vercel.app"
+                "https://sdgs-itb-fe-sample.vercel.app", "https://sdgsc.itb.ac.id"
         ));
         corsConfiguration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         corsConfiguration.setAllowCredentials(true);
