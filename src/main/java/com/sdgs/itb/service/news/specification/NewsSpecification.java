@@ -4,6 +4,7 @@ import com.sdgs.itb.entity.news.News;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.util.List;
+import java.util.Locale;
 
 public class NewsSpecification {
 
@@ -12,8 +13,12 @@ public class NewsSpecification {
     }
 
     public static Specification<News> hasTitle(String title) {
-        return (root, query, cb) ->
-                title == null ? null : cb.like(cb.lower(root.get("title")), "%" + title.toLowerCase() + "%");
+        return (root, query, cb) -> {
+            if (title == null || title.trim().isEmpty()) return null;
+
+            String pattern = "%" + title.trim().toLowerCase(Locale.ROOT) + "%";
+            return cb.like(cb.lower(root.get("title").as(String.class)), pattern);
+        };
     }
 
     public static Specification<News> hasGoal(List<Long> goalIds) {
