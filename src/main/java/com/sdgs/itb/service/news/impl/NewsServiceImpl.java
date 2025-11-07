@@ -252,6 +252,15 @@ public class NewsServiceImpl implements NewsService {
         repository.save(news);
     }
 
+    @Override
+    public void deleteNewsImage(Long imageId) {
+        NewsImage newsImage = newsImageRepository.findById(imageId)
+                .orElseThrow(() -> new DataNotFoundException("Image not found"));
+
+        // Hard delete
+        newsImageRepository.delete(newsImage);
+    }
+
 
     @Override
     public NewsDTO getNews(Long id) {

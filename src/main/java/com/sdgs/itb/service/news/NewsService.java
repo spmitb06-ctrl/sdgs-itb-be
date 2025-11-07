@@ -9,6 +9,7 @@ public interface NewsService {
     NewsDTO createNews(NewsDTO dto);
     NewsDTO updateNews(Long id, NewsDTO dto);
     void deleteNews(Long id);
+    void deleteNewsImage(Long imageId);
     NewsDTO getNews(Long id);
     Page<NewsDTO> getNews(
             String title,
