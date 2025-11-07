@@ -93,6 +93,20 @@ public class DataController {
         }
     }
 
+    @DeleteMapping("/image/{imageId}")
+    public ResponseEntity<ApiResponse<Void>> deleteImage(@PathVariable Long imageId) {
+        try {
+            dataService.deleteDataImage(imageId);
+            return ApiResponse.success(
+                    HttpStatus.OK.value(),
+                    "Image deleted successfully",
+                    null
+            );
+        } catch (Exception e) {
+            return ApiResponse.failed(HttpStatus.NOT_FOUND.value(), e.getMessage());
+        }
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<DataDTO>> getOne(@PathVariable Long id) {
         try {
