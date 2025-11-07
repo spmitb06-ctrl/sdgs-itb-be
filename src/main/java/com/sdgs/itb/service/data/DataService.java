@@ -9,6 +9,7 @@ public interface DataService {
     DataDTO createData(DataDTO dto);
     DataDTO updateData(Long id, DataDTO dto);
     void deleteData(Long id);
+    void deleteDataImage(Long imageId);
     DataDTO getData(Long id);
     Page<DataDTO> getData(
             String title,

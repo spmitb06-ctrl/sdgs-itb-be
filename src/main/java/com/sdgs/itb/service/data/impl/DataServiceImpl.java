@@ -253,6 +253,15 @@ public class DataServiceImpl implements DataService {
         repository.save(data);
     }
 
+    @Override
+    public void deleteDataImage(Long imageId) {
+        DataImage dataImage = dataImageRepository.findById(imageId)
+                .orElseThrow(() -> new DataNotFoundException("Image not found"));
+
+        // Hard delete
+        dataImageRepository.delete(dataImage);
+    }
+
 
     @Override
     public DataDTO getData(Long id) {
