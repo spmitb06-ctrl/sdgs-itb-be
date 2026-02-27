@@ -9,5 +9,9 @@ public interface CommunityServiceImportService {
     int importAll(); // import all records
 
     void importFromDTO(CommunityServiceImportDTO dto);
+
+    int migrateSourceUrlAndSlug();
+
+    int migrateHashtagGoals();
 }
 

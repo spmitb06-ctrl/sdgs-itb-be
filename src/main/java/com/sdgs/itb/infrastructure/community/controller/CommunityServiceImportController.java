@@ -23,4 +23,18 @@ public class CommunityServiceImportController {
         int count = importService.importAll();
         return ResponseEntity.ok("Imported " + count + " new Community Service records.");
     }
+
+    @PostMapping("/migrate/source-url")
+    public ResponseEntity<String> migrateSourceUrl() {
+        int count = importService.migrateSourceUrlAndSlug();
+        return ResponseEntity.ok("Migrated " + count + " Community Service records.");
+    }
+
+    @PostMapping("/migrate/hashtag-goals")
+    public ResponseEntity<String> migrateHashtagGoals() {
+        int count = importService.migrateHashtagGoals();
+        return ResponseEntity.ok(
+                "Updated hashtagGoals for " + count + " news records."
+        );
+    }
 }
