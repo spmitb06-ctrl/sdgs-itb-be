@@ -37,4 +37,10 @@ public class CommunityServiceImportController {
                 "Updated hashtagGoals for " + count + " news records."
         );
     }
+
+    @PostMapping("/migrate/slug")
+    public ResponseEntity<String> migrateSlug() {
+        int count = importService.migrateSlug();
+        return ResponseEntity.ok("Updated slug for " + count + " news.");
+    }
 }

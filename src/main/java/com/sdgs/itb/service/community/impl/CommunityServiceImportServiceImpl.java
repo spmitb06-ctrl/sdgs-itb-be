@@ -65,6 +65,32 @@ public class CommunityServiceImportServiceImpl implements CommunityServiceImport
                 .collect(Collectors.joining(" "));
     }
 
+    private String normalizeTitle(String title) {
+        return title.toLowerCase()
+                .replaceAll("[^a-z0-9\\s]", "")
+                .replaceAll("\\s+", " ")
+                .trim();
+    }
+
+    private Map<String, Object> safeGet(URI uri) throws InterruptedException {
+
+        int retries = 5;
+
+        while (retries > 0) {
+            try {
+                return restTemplate.getForObject(uri, Map.class);
+
+            } catch (org.springframework.web.client.HttpClientErrorException.TooManyRequests e) {
+
+                System.out.println("⚠ Rate limited (429). Waiting 5 seconds...");
+                Thread.sleep(5000);
+                retries--;
+            }
+        }
+
+        throw new RuntimeException("API rate limit exceeded after retries");
+    }
+
     private int importFromAPI(int limit) {
         try {
             // Load caches
@@ -133,7 +159,7 @@ public class CommunityServiceImportServiceImpl implements CommunityServiceImport
 
     private CommunityServiceImportDTO mapToDTO(Map<String, Object> item) {
         String title = (String) item.get("title");
-//        String urlSlug = (String) item.get("slug");
+        String urlSlug = (String) item.get("slug");
         String content = (String) item.get("contex");
         String image = (String) item.get("url_image");
         String createdDate = (String) item.get("created_date");
@@ -143,9 +169,9 @@ public class CommunityServiceImportServiceImpl implements CommunityServiceImport
             return null;
         }
 
-        String urlSlug = title.toLowerCase()
-                .replaceAll("[^a-z0-9\\s]", "")
-                .replaceAll("\\s+", "_");
+//        String urlSlug = title.toLowerCase()
+//                .replaceAll("[^a-z0-9\\s]", "")
+//                .replaceAll("\\s+", "_");
         String sourceUrl = "https://pengabdian.dpmk.itb.ac.id/information/" + urlSlug;
 
         Set<String> sdgs = new LinkedHashSet<>();
@@ -174,7 +200,7 @@ public class CommunityServiceImportServiceImpl implements CommunityServiceImport
 
         CommunityServiceImportDTO dto = new CommunityServiceImportDTO();
         dto.setTitle(title);
-//        dto.setSlug(urlSlug);
+        dto.setSlug(urlSlug);
         dto.setContent(content);
         dto.setImage(image);
         dto.setSourceUrl(sourceUrl);
@@ -240,7 +266,7 @@ public class CommunityServiceImportServiceImpl implements CommunityServiceImport
         // CREATE
         News news = new News();
         news.setTitle(dto.getTitle());
-//        news.setSlug(dto.getSlug());
+        news.setSlug(dto.getSlug());
         news.setContent(dto.getContent());
         news.setThumbnailUrl(dto.getImage());
         news.setSourceUrl(dto.getSourceUrl());
@@ -356,5 +382,94 @@ public class CommunityServiceImportServiceImpl implements CommunityServiceImport
         newsRepository.saveAll(allNews);
 
         return updated;
+    }
+
+    @Override
+    @Transactional
+    public int migrateSlug() {
+
+        try {
+
+            int page = 1;
+            int perPage = 100;
+            int updated = 0;
+
+            // ✅ Only load news that NEED slug
+            Map<String, News> newsByTitle =
+                    newsRepository.findAll().stream()
+                            .filter(n -> n.getSlug() == null || n.getSlug().isBlank())
+                            .collect(Collectors.toMap(
+                                    n -> normalizeTitle(n.getTitle()),
+                                    n -> n,
+                                    (a, b) -> a
+                            ));
+
+            if (newsByTitle.isEmpty()) {
+                return 0;
+            }
+
+            System.out.println("Need slug update: " + newsByTitle.size());
+
+            while (!newsByTitle.isEmpty()) {
+
+                URI uri = new URI(
+                        "https://pengabdian.dpmk.itb.ac.id/api/informations?page="
+                                + page + "&per_page=" + perPage
+                );
+
+                Map<String, Object> response =
+                        restTemplate.getForObject(uri, Map.class);
+
+                if (response == null) break;
+
+                List<Map<String, Object>> items =
+                        (List<Map<String, Object>>) response.get("data");
+
+                if (items == null || items.isEmpty()) break;
+
+                int foundThisPage = 0;
+
+                for (Map<String, Object> item : items) {
+
+                    String title = (String) item.get("title");
+                    String slug = (String) item.get("slug");
+
+                    if (title == null || slug == null) continue;
+
+                    String key = normalizeTitle(title);
+
+                    News news = newsByTitle.remove(key);
+
+                    if (news != null) {
+                        news.setSlug(slug);
+                        updated++;
+                        foundThisPage++;
+                    }
+                }
+
+                System.out.println(
+                        "Page " + page +
+                                " | updated=" + updated +
+                                " | remaining=" + newsByTitle.size()
+                );
+
+                // ✅ SAME OPTIMIZATION AS IMPORT
+                if (foundThisPage == 0) {
+                    System.out.println("No matches found → stopping early");
+                    break;
+                }
+
+                if (items.size() < perPage) break;
+
+                page++;
+            }
+
+            newsRepository.flush();
+
+            return updated;
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed migrating slug from DPMK API", e);
+        }
     }
 }

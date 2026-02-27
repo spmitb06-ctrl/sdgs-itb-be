@@ -24,17 +24,8 @@ public interface NewsRepository extends JpaRepository<News, Long>, JpaSpecificat
     Optional<News> findByTitleIgnoreCase(@Param("title") String title);
 
     @Query("""
-        SELECT LOWER(n.title)
-        FROM News n
-        GROUP BY LOWER(n.title)
-        HAVING COUNT(n) > 1
-    """)
-    List<String> findDuplicateTitles();
-
-    @Query("""
         SELECT n FROM News n
-        WHERE LOWER(n.title) = LOWER(:title)
-        ORDER BY n.createdAt DESC
+        WHERE n.scholarYear IS NULL
     """)
-    List<News> findAllByTitleOrderByCreatedAtDesc(@Param("title") String title);
+    List<News> findAllCommunityServiceNews();
 }
