@@ -13,5 +13,7 @@ public interface CommunityServiceImportService {
     int migrateSourceUrlAndSlug();
 
     int migrateHashtagGoals();
+
+    int migrateSlug();
 }
 
