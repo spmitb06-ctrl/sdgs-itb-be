@@ -5,6 +5,7 @@ import com.sdgs.itb.entity.goal.Goal;
 import com.sdgs.itb.entity.goal.Scholar;
 import com.sdgs.itb.entity.news.News;
 import com.sdgs.itb.entity.news.NewsCategory;
+import com.sdgs.itb.entity.news.NewsImage;
 import com.sdgs.itb.entity.unit.Unit;
 import com.sdgs.itb.infrastructure.community.dto.CommunityServiceImportDTO;
 import com.sdgs.itb.infrastructure.goal.repository.GoalRepository;
@@ -13,6 +14,7 @@ import com.sdgs.itb.infrastructure.news.repository.NewsCategoryRepository;
 import com.sdgs.itb.infrastructure.news.repository.NewsRepository;
 import com.sdgs.itb.infrastructure.unit.repository.UnitRepository;
 import com.sdgs.itb.service.community.CommunityServiceImportService;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -24,6 +26,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -49,6 +52,17 @@ public class CommunityServiceImportServiceImpl implements CommunityServiceImport
     @Override
     public int importAll() {
         return importFromAPI(Integer.MAX_VALUE);
+    }
+
+    private String normalizeHashtagGoals(String goalsRaw) {
+        if (goalsRaw == null || goalsRaw.isBlank()) return null;
+
+        return Arrays.stream(goalsRaw.toUpperCase().split("\\s+"))
+                .map(String::trim)
+                .filter(s -> s.startsWith("#SDG"))
+                .distinct()
+                .sorted()
+                .collect(Collectors.joining(" "));
     }
 
     private int importFromAPI(int limit) {
@@ -119,6 +133,7 @@ public class CommunityServiceImportServiceImpl implements CommunityServiceImport
 
     private CommunityServiceImportDTO mapToDTO(Map<String, Object> item) {
         String title = (String) item.get("title");
+//        String urlSlug = (String) item.get("slug");
         String content = (String) item.get("contex");
         String image = (String) item.get("url_image");
         String createdDate = (String) item.get("created_date");
@@ -133,12 +148,23 @@ public class CommunityServiceImportServiceImpl implements CommunityServiceImport
                 .replaceAll("\\s+", "_");
         String sourceUrl = "https://pengabdian.dpmk.itb.ac.id/information/" + urlSlug;
 
-        List<String> sdgs = new ArrayList<>();
+        Set<String> sdgs = new LinkedHashSet<>();
         String sdgSource = goalsRaw != null && !goalsRaw.isBlank() ? goalsRaw : content;
         if (sdgSource != null) {
-            Matcher matcher = Pattern.compile("#SDG(\\d{1,2})").matcher(sdgSource);
+            // #SDG1, #SDG01, #sdg 1, SDG 01, etc.
+            Pattern pattern = Pattern.compile("#SDG\\s*0?(\\d{1,2})", Pattern.CASE_INSENSITIVE);
+            Matcher matcher = pattern.matcher(sdgSource);
+
             while (matcher.find()) {
-                sdgs.add(matcher.group(1));
+                try {
+                    int sdgNumber = Integer.parseInt(matcher.group(1));
+                    // Only add valid SDG numbers (1–17)
+                    if (sdgNumber >= 1 && sdgNumber <= 17) {
+                        sdgs.add(String.valueOf(sdgNumber));
+                    }
+                } catch (NumberFormatException ignored) {
+                    // Ignore malformed SDG references
+                }
             }
         }
 
@@ -148,11 +174,13 @@ public class CommunityServiceImportServiceImpl implements CommunityServiceImport
 
         CommunityServiceImportDTO dto = new CommunityServiceImportDTO();
         dto.setTitle(title);
+//        dto.setSlug(urlSlug);
         dto.setContent(content);
         dto.setImage(image);
         dto.setSourceUrl(sourceUrl);
         dto.setCreatedDate(createdDate);
-        dto.setSdgs(sdgs);
+        dto.setHashtagGoals(normalizeHashtagGoals(goalsRaw));
+        dto.setSdgs(new ArrayList<>(sdgs));
         return dto;
     }
 
@@ -161,16 +189,62 @@ public class CommunityServiceImportServiceImpl implements CommunityServiceImport
         if (dto.getSourceUrl() == null || dto.getSdgs().isEmpty()) return;
 
         Optional<News> existingOpt = newsRepository.findBySourceUrl(dto.getSourceUrl());
+
+        // UPDATE
         if (existingOpt.isPresent()) {
-            // already exists → skip
+            News existing = existingOpt.get();
+
+            String newHashtags = dto.getHashtagGoals();
+            String oldHashtags = existing.getHashtagGoals();
+
+            // nothing changed
+            if (Objects.equals(newHashtags, oldHashtags)) {
+                return;
+            }
+
+            System.out.println("Updating goals for News ID=" + existing.getId());
+
+            // update hashtagGoals column
+            existing.setHashtagGoals(newHashtags);
+
+            // Replace goals safely
+            existing.getNewsGoals().clear(); // orphanRemoval deletes old
+
+            dto.getSdgs().forEach(sdgNum -> {
+                Goal goal = goalCache.values().stream()
+                        .filter(g -> g.getTitle()
+                                .toUpperCase()
+                                .startsWith("GOAL " + sdgNum))
+                        .findFirst()
+                        .orElse(null);
+
+                if (goal != null) {
+                    existing.addGoal(goal);
+                }
+            });
+
+            newsRepository.save(existing);
+
+            // If slug is missing, update it
+//            if ((existing.getSlug() == null || existing.getSlug().isBlank())
+//                    && dto.getSlug() != null && !dto.getSlug().isBlank()) {
+//
+//                existing.setSlug(dto.getSlug());
+//                newsRepository.save(existing);
+//            }
+
+            // already exists → stop further processing
             return;
         }
 
+        // CREATE
         News news = new News();
         news.setTitle(dto.getTitle());
+//        news.setSlug(dto.getSlug());
         news.setContent(dto.getContent());
         news.setThumbnailUrl(dto.getImage());
         news.setSourceUrl(dto.getSourceUrl());
+        news.setHashtagGoals(dto.getHashtagGoals());
 
         Scholar outreach = scholarCache.get("outreach");
         news.setScholar(outreach);
@@ -208,5 +282,79 @@ public class CommunityServiceImportServiceImpl implements CommunityServiceImport
                 });
 
         newsRepository.save(savedNews);
+    }
+
+    @Override
+    @Transactional
+    public int migrateSourceUrlAndSlug() {
+
+        String oldPrefix = "https://pengabdian.dpmk.itb.ac.id/information/";
+        List<News> newsList = newsRepository.findBySourceUrlStartingWith(oldPrefix);
+
+        int updatedCount = 0;
+
+        for (News news : newsList) {
+
+            boolean updated = false;
+
+            // Ensure slug exists
+            if (news.getSlug() == null || news.getSlug().isBlank()) {
+                String slug = news.getTitle().toLowerCase()
+                        .replaceAll("[^a-z0-9\\s]", "")
+                        .replaceAll("\\s+", "_");
+                news.setSlug(slug);
+                updated = true;
+            }
+
+            // Ensure canonical sourceUrl
+            String canonicalUrl = oldPrefix + news.getSlug();
+            if (!canonicalUrl.equals(news.getSourceUrl())) {
+                news.setSourceUrl(canonicalUrl);
+                updated = true;
+            }
+
+            if (updated) {
+                updatedCount++;
+            }
+        }
+
+        newsRepository.saveAll(newsList);
+        return updatedCount;
+    }
+
+    @Override
+    @Transactional
+    public int migrateHashtagGoals() {
+        List<News> allNews = newsRepository.findAll();
+        int updated = 0;
+
+        for (News news : allNews) {
+
+            // skip if already filled
+            if (news.getHashtagGoals() != null &&
+                    !news.getHashtagGoals().isBlank()) {
+                continue;
+            }
+
+            if (news.getNewsGoals() == null || news.getNewsGoals().isEmpty()) {
+                continue;
+            }
+
+            // build hashtag string from relations
+            Set<String> hashtags = news.getNewsGoals().stream()
+                    .map(ng -> ng.getGoal().getGoalNumber())
+                    .sorted()
+                    .map(num -> "#SDG" + num)
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+
+            String hashtagGoals = String.join(" ", hashtags);
+
+            news.setHashtagGoals(hashtagGoals);
+            updated++;
+        }
+
+        newsRepository.saveAll(allNews);
+
+        return updated;
     }
 }

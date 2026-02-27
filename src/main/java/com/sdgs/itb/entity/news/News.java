@@ -40,6 +40,12 @@ public class News {
     @Column(name = "source_url")
     private String sourceUrl;
 
+    @Column
+    private String slug;
+
+    @Column
+    private String hashtagGoals;
+
     @Column(name = "scholar_year")
     private String scholarYear;
 

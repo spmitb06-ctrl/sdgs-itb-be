@@ -18,6 +18,8 @@ public class NewsDTO {
     private String content;
     private String thumbnailUrl;
     private String sourceUrl;
+    private String hashtagGoals;
+    private String slug;
     private List<String> imageUrls;
 
     @JsonFormat(pattern = "yyyy-MM-dd")

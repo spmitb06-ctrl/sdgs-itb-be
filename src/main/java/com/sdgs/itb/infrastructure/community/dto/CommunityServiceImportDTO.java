@@ -7,6 +7,8 @@ import java.util.List;
 @Data
 public class CommunityServiceImportDTO {
     private String title;
+    private String slug;
+    private String hashtagGoals;
     private String content; // from "contex"
     private String image; // url_image
     private String sourceUrl; // generated URL
