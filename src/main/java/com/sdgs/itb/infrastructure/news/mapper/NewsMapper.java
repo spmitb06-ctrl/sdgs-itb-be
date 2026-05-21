@@ -49,6 +49,7 @@ public class NewsMapper {
         dto.setHashtagGoals(news.getHashtagGoals());
 
         dto.setImageUrls(news.getImages().stream()
+                .filter(img -> img.getDeletedAt() == null)
                 .map(NewsImage::getImageUrl)
                 .collect(Collectors.toList()));
 

@@ -26,6 +26,10 @@ public class NewsSpecification {
             if (goalIds == null || goalIds.isEmpty()) {
                 return cb.conjunction();
             }
+
+            assert query != null;
+            query.distinct(true);
+
             return root.join("newsGoals")
                     .join("goal")
                     .get("id")
@@ -38,6 +42,10 @@ public class NewsSpecification {
             if (categoryIds == null || categoryIds.isEmpty()) {
                 return cb.conjunction();
             }
+
+            assert query != null;
+            query.distinct(true);
+
             return root.join("newsCategory").get("id").in(categoryIds);
         };
     }
@@ -47,6 +55,10 @@ public class NewsSpecification {
             if (scholarIds == null || scholarIds.isEmpty()) {
                 return cb.conjunction();
             }
+
+            assert query != null;
+            query.distinct(true);
+
             return root.join("scholar").get("id").in(scholarIds);
         };
     }
@@ -56,6 +68,10 @@ public class NewsSpecification {
             if (unitIds == null || unitIds.isEmpty()) {
                 return cb.conjunction();
             }
+
+            assert query != null;
+            query.distinct(true);
+
             return root.join("newsUnits")
                     .join("unit")
                     .get("id")

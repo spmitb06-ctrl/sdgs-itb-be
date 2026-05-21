@@ -205,13 +205,28 @@ public class NewsServiceImpl implements NewsService {
         }
 
         // Images
-        if (dto.getImageUrls() != null && !dto.getImageUrls().isEmpty()) {
+        if (dto.getImageUrls() != null) {
+            // Delete images not in the new list
+            List<NewsImage> existingImages = newsImageRepository.findAllByNewsId(existing.getId());
+            for (NewsImage oldImage : existingImages) {
+                if (!dto.getImageUrls().contains(oldImage.getImageUrl())) {
+                    newsImageRepository.delete(oldImage);
+                }
+            }
+
+            // Add only new images not already saved
+            List<String> existingUrls = existingImages.stream()
+                    .map(NewsImage::getImageUrl)
+                    .toList();
+
             for (String url : dto.getImageUrls()) {
-                NewsImage image = NewsImage.builder()
-                        .news(existing)
-                        .imageUrl(url)
-                        .build();
-                existing.getImages().add(image);
+                if (!existingUrls.contains(url)) {
+                    NewsImage image = NewsImage.builder()
+                            .news(existing)
+                            .imageUrl(url)
+                            .build();
+                    existing.getImages().add(image);
+                }
             }
         }
 

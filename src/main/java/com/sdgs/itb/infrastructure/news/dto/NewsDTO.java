@@ -1,5 +1,6 @@
 package com.sdgs.itb.infrastructure.news.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.sdgs.itb.infrastructure.goal.dto.ScholarDTO;
 import lombok.*;
@@ -20,6 +21,8 @@ public class NewsDTO {
     private String sourceUrl;
     private String hashtagGoals;
     private String slug;
+
+    @JsonAlias("images")
     private List<String> imageUrls;
 
     @JsonFormat(pattern = "yyyy-MM-dd")
