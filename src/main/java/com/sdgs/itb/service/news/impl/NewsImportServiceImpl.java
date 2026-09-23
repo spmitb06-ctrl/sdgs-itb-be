@@ -14,13 +14,10 @@ import com.sdgs.itb.infrastructure.unit.repository.UnitRepository;
 import com.sdgs.itb.service.news.NewsImportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -35,28 +32,82 @@ public class NewsImportServiceImpl implements NewsImportService {
     private final Map<String, Goal> goalCache = new HashMap<>();
     private final Map<String, Scholar> scholarCache = new HashMap<>();
     private final Map<String, NewsCategory> categoryCache = new HashMap<>();
+    private final Map<Long, List<Unit>> unitCache = new HashMap<>();
 
     @Override
+    @Transactional
     public News importFromTypesense(TypesenseNewsExportDTO dto) {
         // ---- Initialize caches ----
         if (goalCache.isEmpty()) {
             goalRepository.findAll().forEach(goal ->
-                    goalCache.put(goal.getTitle().toLowerCase(), goal)
+                    goalCache.put(goal.getTitle().toLowerCase().trim(), goal)
             );
         }
         if (scholarCache.isEmpty()) {
             scholarRepository.findAll().forEach(scholar ->
-                    scholarCache.put(scholar.getName().toLowerCase(), scholar)
+                    scholarCache.put(scholar.getName().toLowerCase().trim(), scholar)
             );
         }
         if (categoryCache.isEmpty()) {
             newsCategoryRepository.findAll().forEach(category ->
-                    categoryCache.put(category.getCategory().toLowerCase(), category)
+                    categoryCache.put(category.getCategory().toLowerCase().trim(), category)
             );
         }
 
-        // ---- Deduplication: check if news already exists ----
-        Optional<News> existingOpt = newsRepository.findBySourceUrl(dto.getUrl());
+        if (unitCache.isEmpty()) {
+            for (long i = 1; i <= 12; i++) {
+                unitCache.put(i, unitRepository.findByOrganizationId(i));
+            }
+        }
+
+        String scholarName = dto.getScholarName().toLowerCase().trim();
+        String cleanTitle = dto.getTitle() != null ? dto.getTitle().trim() : "";
+
+        // 1. Resolve full sourceUrl & thumbnailUrl FIRST
+        String fullSourceUrl;
+        String thumbnailUrl;
+        String defaultContent = dto.getAbstractText();
+
+        if ("outreach".equals(scholarName)) {
+            fullSourceUrl = "https://scholar.itb.ac.id/outreach/" + dto.getUrl();
+            thumbnailUrl = "/news/outreach.jpg";
+        } else if ("project".equals(scholarName) && "pengabdian".equalsIgnoreCase(dto.getType())) {
+            fullSourceUrl = "https://scholar.itb.ac.id/project/" + dto.getUrl();
+            thumbnailUrl = "/news/community-service.jpg";
+        } else {
+            switch (scholarName) {
+                case "project" -> {
+                    fullSourceUrl = "https://scholar.itb.ac.id/project/" + dto.getUrl();
+                    thumbnailUrl = "/news/project.jpg";
+                }
+                case "paper" -> {
+                    fullSourceUrl = "https://scholar.itb.ac.id/paper/" + dto.getUrl();
+                    thumbnailUrl = "/news/paper.jpeg";
+                }
+                case "patent" -> {
+                    fullSourceUrl = "https://scholar.itb.ac.id/patent/" + dto.getUrl();
+                    thumbnailUrl = "/news/patent.jpg";
+                }
+                case "thesis" -> {
+                    fullSourceUrl = "https://scholar.itb.ac.id/thesis/" + dto.getUrl();
+                    thumbnailUrl = "/news/thesis.jpeg";
+                }
+                default -> {
+                    fullSourceUrl = "https://scholar.itb.ac.id/" + scholarName + "/" + dto.getUrl();
+                    thumbnailUrl = "/news/default.jpg";
+                }
+            }
+        }
+
+        // 2. DEDUPLICATION: Check by fullSourceUrl OR by clean title
+        Optional<News> existingOpt = newsRepository.findBySourceUrl(fullSourceUrl);
+
+        if (existingOpt.isEmpty() && !cleanTitle.isEmpty()) {
+            List<News> matches = newsRepository.findByTitleIgnoreCase(cleanTitle);
+            if (!matches.isEmpty()) {
+                existingOpt = Optional.of(matches.get(0));
+            }
+        }
 
         if (existingOpt.isPresent()) {
             News existing = existingOpt.get();
@@ -64,7 +115,7 @@ public class NewsImportServiceImpl implements NewsImportService {
             // Add any missing goals
             if (dto.getSdg() != null && !dto.getSdg().isEmpty()) {
                 dto.getSdg().stream()
-                        .map(String::toLowerCase)
+                        .map(s -> s.toLowerCase().trim())
                         .distinct()
                         .forEach(sdgName -> {
                             Goal goal = goalCache.get(sdgName);
@@ -77,93 +128,209 @@ public class NewsImportServiceImpl implements NewsImportService {
             return newsRepository.save(existing);
         }
 
-        // ---- Create new news ----
-        News newNews = new News();
-        newNews.setTitle(dto.getTitle());
-        newNews.setThumbnailUrl(dto.getImage());
-        newNews.setScholarYear(dto.getYear());
-
-        // ✅ Use dateTime (unified field from Typesense import)
-        newNews.setEventDate(dto.getDateTime() != null
-                ? dto.getDateTime()
-                : LocalDate.now());
-
-        // ---- Category mapping ----
-        String scholarName = dto.getScholarName().toLowerCase();
+        // 3. Resolve Category
         NewsCategory category;
-        if (!scholarName.equals("outreach")) {
-            if (scholarName.equals("project") && dto.getType().equals("pengabdian")) {
-                category = categoryCache.get("community service");
-                newNews.setContent(dto.getAbstractText());
-                newNews.setSourceUrl("https://scholar.itb.ac.id/project_detail/" + dto.getUrl());
-                newNews.setThumbnailUrl("/news/community-service.jpg");
-            } else {
-                category = categoryCache.get("publication, research & paper");
-                newNews.setContent(dto.getAbstractText());
-                switch (scholarName) {
-                    case "project" -> {
-                        newNews.setSourceUrl("https://scholar.itb.ac.id/project_detail/" + dto.getUrl());
-                        newNews.setThumbnailUrl("/news/project.jpg");
-                    }
-                    case "paper" -> {
-                        newNews.setSourceUrl("https://scholar.itb.ac.id/paper_detail/" + dto.getUrl());
-                        newNews.setThumbnailUrl("/news/paper.jpeg");
-                    }
-                    case "patent" -> {
-                        newNews.setSourceUrl("https://scholar.itb.ac.id/paten_detail/" + dto.getUrl());
-                        newNews.setThumbnailUrl("/news/patent.jpg");
-                    }
-                    case "thesis" -> {
-                        newNews.setSourceUrl("https://scholar.itb.ac.id/thesis_detail/" + dto.getUrl());
-                        newNews.setThumbnailUrl("/news/thesis.jpeg");
-                    }
-                }
-            }
-        } else {
+        if ("outreach".equals(scholarName) || ("project".equals(scholarName) && "pengabdian".equalsIgnoreCase(dto.getType()))) {
             category = categoryCache.get("community service");
-            newNews.setContent(dto.getAbstractText());
-            newNews.setSourceUrl("https://scholar.itb.ac.id/outreach_detail/" + dto.getUrl());
-            newNews.setThumbnailUrl("/news/outreach.jpg");
+        } else {
+            category = categoryCache.get("research & publication");
+            if (category == null) {
+                category = categoryCache.get("publication, research & paper");
+            }
         }
 
         if (category == null) {
-            throw new IllegalStateException("No matching category found for: " + dto.getScholarName());
+            throw new IllegalStateException("No matching category found for: " + scholarName
+                    + ". Available: " + categoryCache.keySet());
         }
-        newNews.setNewsCategory(category);
 
-        // ---- Scholar mapping ----
-        Scholar scholar = scholarCache.get(dto.getScholarName().toLowerCase());
+        // 4. Resolve Scholar
+        Scholar scholar = scholarCache.get(scholarName);
         if (scholar == null) {
-            throw new IllegalArgumentException("Scholar not found: " + dto.getScholarName());
+            throw new IllegalArgumentException("Scholar not found: " + scholarName);
         }
+
+        // 5. Build New News Entity
+        News newNews = new News();
+        newNews.setTitle(cleanTitle);
+        newNews.setContent(defaultContent);
+        newNews.setSourceUrl(fullSourceUrl);
+        newNews.setThumbnailUrl(thumbnailUrl);
+        newNews.setScholarYear(dto.getYear());
+        newNews.setEventDate(dto.getDateTime() != null ? dto.getDateTime() : LocalDate.now());
+        newNews.setNewsCategory(category);
         newNews.setScholar(scholar);
 
-        // Save first to get ID
-        News savedNews = newsRepository.save(newNews);
-
-        // ---- Add goals ----
+        // Add goals before saving
         if (dto.getSdg() != null && !dto.getSdg().isEmpty()) {
             dto.getSdg().stream()
-                    .map(String::toLowerCase)
+                    .map(s -> s.toLowerCase().trim())
                     .distinct()
                     .forEach(sdgName -> {
                         Goal goal = goalCache.get(sdgName);
                         if (goal != null) {
-                            savedNews.addGoal(goal);
+                            newNews.addGoal(goal);
                         }
                     });
         }
 
-        // ---- Add Units based on organization IDs ----
+        // Add units before saving
         if (dto.getOrganizations() != null && !dto.getOrganizations().isEmpty()) {
             for (Long orgId : dto.getOrganizations()) {
-                List<Unit> units = unitRepository.findByOrganizationId(orgId);
+                List<Unit> units = unitCache.getOrDefault(orgId, Collections.emptyList());
                 for (Unit unit : units) {
-                    savedNews.addUnit(unit);
+                    newNews.addUnit(unit);
                 }
             }
         }
 
-        return newsRepository.save(savedNews);
+        // Single atomic save
+        return newsRepository.save(newNews);
+    }
+
+    @Override
+    @Transactional
+    public boolean importOrUpdateFromTypesense(TypesenseNewsExportDTO dto) {
+        // ---- Initialize caches ----
+        if (goalCache.isEmpty()) {
+            goalRepository.findAll().forEach(goal ->
+                    goalCache.put(goal.getTitle().toLowerCase().trim(), goal)
+            );
+        }
+        if (scholarCache.isEmpty()) {
+            scholarRepository.findAll().forEach(scholar ->
+                    scholarCache.put(scholar.getName().toLowerCase().trim(), scholar)
+            );
+        }
+        if (categoryCache.isEmpty()) {
+            newsCategoryRepository.findAll().forEach(category ->
+                    categoryCache.put(category.getCategory().toLowerCase().trim(), category)
+            );
+        }
+        if (unitCache.isEmpty()) {
+            for (long i = 1; i <= 12; i++) {
+                unitCache.put(i, unitRepository.findByOrganizationId(i));
+            }
+        }
+
+        String scholarName = dto.getScholarName().toLowerCase().trim();
+        String cleanTitle = dto.getTitle() != null ? dto.getTitle().trim() : "";
+
+        // 1. Resolve full sourceUrl & thumbnailUrl
+        String fullSourceUrl;
+        String thumbnailUrl;
+        String defaultContent = dto.getAbstractText();
+
+        if ("outreach".equals(scholarName)) {
+            fullSourceUrl = "https://scholar.itb.ac.id/outreach_detail/" + dto.getUrl();
+            thumbnailUrl = "/news/outreach.jpg";
+        } else if ("project".equals(scholarName) && "pengabdian".equalsIgnoreCase(dto.getType())) {
+            fullSourceUrl = "https://scholar.itb.ac.id/project_detail/" + dto.getUrl();
+            thumbnailUrl = "/news/community-service.jpg";
+        } else {
+            switch (scholarName) {
+                case "project" -> {
+                    fullSourceUrl = "https://scholar.itb.ac.id/project_detail/" + dto.getUrl();
+                    thumbnailUrl = "/news/project.jpg";
+                }
+                case "paper" -> {
+                    fullSourceUrl = "https://scholar.itb.ac.id/paper_detail/" + dto.getUrl();
+                    thumbnailUrl = "/news/paper.jpeg";
+                }
+                case "patent" -> {
+                    fullSourceUrl = "https://scholar.itb.ac.id/paten_detail/" + dto.getUrl();
+                    thumbnailUrl = "/news/patent.jpg";
+                }
+                case "thesis" -> {
+                    fullSourceUrl = "https://scholar.itb.ac.id/thesis_detail/" + dto.getUrl();
+                    thumbnailUrl = "/news/thesis.jpeg";
+                }
+                default -> {
+                    fullSourceUrl = "https://scholar.itb.ac.id/" + scholarName + "_detail/" + dto.getUrl();
+                    thumbnailUrl = "/news/default.jpg";
+                }
+            }
+        }
+
+        // 2. Deduplication check
+        Optional<News> existingOpt = newsRepository.findBySourceUrl(fullSourceUrl);
+        if (existingOpt.isEmpty() && !cleanTitle.isEmpty()) {
+            List<News> matches = newsRepository.findByTitleIgnoreCase(cleanTitle);
+            if (!matches.isEmpty()) {
+                existingOpt = Optional.of(matches.get(0));
+            }
+        }
+
+        if (existingOpt.isPresent()) {
+            News existing = existingOpt.get();
+            if (dto.getSdg() != null && !dto.getSdg().isEmpty()) {
+                dto.getSdg().stream()
+                        .map(s -> s.toLowerCase().trim())
+                        .distinct()
+                        .forEach(sdgName -> {
+                            Goal goal = goalCache.get(sdgName);
+                            if (goal != null) {
+                                existing.addGoal(goal);
+                            }
+                        });
+            }
+            newsRepository.save(existing);
+            return false; // Document was already present
+        }
+
+        // 3. Resolve Category & Scholar
+        NewsCategory category;
+        if ("outreach".equals(scholarName) || ("project".equals(scholarName) && "pengabdian".equalsIgnoreCase(dto.getType()))) {
+            category = categoryCache.get("community service");
+        } else {
+            category = categoryCache.get("research & publication");
+            if (category == null) {
+                category = categoryCache.get("publication, research & paper");
+            }
+        }
+
+        if (category == null) {
+            throw new IllegalStateException("No matching category found for: " + scholarName);
+        }
+
+        Scholar scholar = scholarCache.get(scholarName);
+        if (scholar == null) {
+            throw new IllegalArgumentException("Scholar not found: " + scholarName);
+        }
+
+        // 4. Build New Entity
+        News newNews = new News();
+        newNews.setTitle(cleanTitle);
+        newNews.setContent(defaultContent);
+        newNews.setSourceUrl(fullSourceUrl);
+        newNews.setThumbnailUrl(thumbnailUrl);
+        newNews.setScholarYear(dto.getYear());
+        newNews.setEventDate(dto.getDateTime() != null ? dto.getDateTime() : LocalDate.now());
+        newNews.setNewsCategory(category);
+        newNews.setScholar(scholar);
+
+        if (dto.getSdg() != null && !dto.getSdg().isEmpty()) {
+            dto.getSdg().stream()
+                    .map(s -> s.toLowerCase().trim())
+                    .distinct()
+                    .forEach(sdgName -> {
+                        Goal goal = goalCache.get(sdgName);
+                        if (goal != null) {
+                            newNews.addGoal(goal);
+                        }
+                    });
+        }
+
+        if (dto.getOrganizations() != null && !dto.getOrganizations().isEmpty()) {
+            for (Long orgId : dto.getOrganizations()) {
+                List<Unit> units = unitCache.getOrDefault(orgId, Collections.emptyList());
+                for (Unit unit : units) {
+                    newNews.addUnit(unit);
+                }
+            }
+        }
+
+        newsRepository.save(newNews);
+        return true; // Newly created record
     }
 }
