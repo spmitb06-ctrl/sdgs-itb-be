@@ -5,4 +5,6 @@ import com.sdgs.itb.infrastructure.typesense.dto.TypesenseNewsExportDTO;
 
 public interface NewsImportService {
     News importFromTypesense(TypesenseNewsExportDTO dto);
+
+    boolean importOrUpdateFromTypesense(TypesenseNewsExportDTO dto);
 }

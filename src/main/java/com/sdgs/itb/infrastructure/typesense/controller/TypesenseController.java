@@ -1,14 +1,11 @@
 package com.sdgs.itb.infrastructure.typesense.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sdgs.itb.common.responses.ApiResponse;
 import com.sdgs.itb.infrastructure.typesense.dto.TypesenseCountDTO;
 import com.sdgs.itb.service.typesense.TypesenseService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,7 +19,7 @@ public class TypesenseController {
 
     private final TypesenseService typesenseService;
 
-    private static final String[] TABLES = {"paper", "project", "patent", "outreach", "thesis", "profiles", "organization"};
+    private static final String[] TABLES = {"paper", "project", "patent", "outreach", "thesis", "profile", "organization"};
 
     private static final String[] SDGS = {
             "GOAL 1: No Poverty",

@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.OutputStream;
 import java.net.URI;
@@ -36,8 +37,12 @@ public class TypesenseServiceImpl implements TypesenseService {
 
     @Override
     public int searchCount(String collection, String sdg) {
-        String url = baseUrl + "/" + collection + "/documents/search";
-        URI uri = URI.create(url + "?q=*&filter_by=sdg:=" + sdg);
+        URI uri = UriComponentsBuilder.fromUriString(baseUrl + "/" + collection + "/documents/search")
+                .queryParam("q", "*")
+                .queryParam("query_by", "title")
+                .queryParam("filter_by", "sdg:=" + sdg)
+                .build()
+                .toUri();
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("X-TYPESENSE-API-KEY", apiKey);
@@ -67,8 +72,6 @@ public class TypesenseServiceImpl implements TypesenseService {
     @SuppressWarnings("unchecked")
     private void importFromTypesenseInternal(String collection, int importLimit) {
         try {
-            String url = baseUrl + "/" + collection + "/documents/search";
-
             int page = 1;
             int perPage = 200;
             int importedCount = 0;
@@ -85,17 +88,25 @@ public class TypesenseServiceImpl implements TypesenseService {
                     .toFormatter(Locale.ENGLISH);
 
             while (importedCount < importLimit && hasMore) {
-                URI uri;
+                String includeFields;
                 if (collection.equals("project") || collection.equals("outreach")) {
-                    uri = new URI(url + "?q=*&per_page=" + perPage + "&page=" + page +
-                            "&include_fields=abstract,sdg,title,slug,start,year,organization,type");
+                    includeFields = "abstract,sdg,title,slug,start,year,organization,type";
                 } else if (collection.equals("patent")) {
-                    uri = new URI(url + "?q=*&per_page=" + perPage + "&page=" + page +
-                            "&include_fields=abstract,sdg,title,slug,date,year,organization,type");
+                    includeFields = "abstract,sdg,title,slug,date,year,organization,type";
                 } else {
-                    uri = new URI(url + "?q=*&per_page=" + perPage + "&page=" + page +
-                            "&include_fields=abstract,sdg,title,slug,year,organization");
+                    includeFields = "abstract,sdg,title,slug,year,organization,type";
                 }
+
+                URI uri = UriComponentsBuilder.fromUriString(baseUrl + "/" + collection + "/documents/search")
+                        .queryParam("q", "*")
+                        .queryParam("query_by", "title")
+                        .queryParam("per_page", perPage)
+                        .queryParam("page", page)
+                        .queryParam("filter_by", "year:>=" + cutoffYear)
+                        .queryParam("sort_by", "year:desc")
+                        .queryParam("include_fields", includeFields)
+                        .build()
+                        .toUri();
 
                 HttpHeaders headers = new HttpHeaders();
                 headers.set("X-TYPESENSE-API-KEY", apiKey);
@@ -140,7 +151,6 @@ public class TypesenseServiceImpl implements TypesenseService {
                     String type = (String) doc.get("type");
                     LocalDate eventDate = null;
 
-                    // Parse normal date for specific collections
                     String dateStr = null;
                     if (collection.equals("project") || collection.equals("outreach")) {
                         dateStr = (String) doc.get("start");
@@ -154,12 +164,10 @@ public class TypesenseServiceImpl implements TypesenseService {
                         } catch (DateTimeParseException ignored) {}
                     }
 
-                    // For paper or thesis → set eventDate from Year (1st Jan)
                     if ((collection.equals("paper") || collection.equals("thesis")) && year > 0) {
                         eventDate = LocalDate.of(year, 1, 1);
                     }
 
-                    // Wrap abstractText in <p>...</p> for paper/thesis
                     if ((collection.equals("paper") || collection.equals("thesis")) && abstractText != null && !abstractText.trim().isEmpty()) {
                         String trimmed = abstractText.trim();
                         if (!trimmed.startsWith("<p>")) {
@@ -167,7 +175,6 @@ public class TypesenseServiceImpl implements TypesenseService {
                         }
                     }
 
-                    // Parse organizations (<= 12 only)
                     List<String> orgStrings = (List<String>) doc.get("organization");
                     List<Long> organizations = new ArrayList<>();
                     if (orgStrings != null) {
@@ -215,8 +222,6 @@ public class TypesenseServiceImpl implements TypesenseService {
     @Override
     public void streamExport(String collection, HttpServletResponse response) {
         try {
-            String url = baseUrl + "/" + collection + "/documents/search";
-
             int page = 1;
             int perPage = 200;
             boolean hasMore = true;
@@ -227,7 +232,13 @@ public class TypesenseServiceImpl implements TypesenseService {
             OutputStream out = response.getOutputStream();
 
             while (hasMore) {
-                URI uri = new URI(url + "?q=*&per_page=" + perPage + "&page=" + page);
+                URI uri = UriComponentsBuilder.fromUriString(baseUrl + "/" + collection + "/documents/search")
+                        .queryParam("q", "*")
+                        .queryParam("query_by", "title")
+                        .queryParam("per_page", perPage)
+                        .queryParam("page", page)
+                        .build()
+                        .toUri();
 
                 HttpHeaders headers = new HttpHeaders();
                 headers.set("X-TYPESENSE-API-KEY", apiKey);
@@ -279,7 +290,6 @@ public class TypesenseServiceImpl implements TypesenseService {
         Set<String> types = new HashSet<>();
 
         try {
-            String url = baseUrl + "/" + collection + "/documents/search";
             int page = 1;
             int perPage = 200;
             boolean hasMore = true;
@@ -289,7 +299,14 @@ public class TypesenseServiceImpl implements TypesenseService {
             HttpEntity<Void> request = new HttpEntity<>(headers);
 
             while (hasMore) {
-                URI uri = new URI(url + "?q=*&per_page=" + perPage + "&page=" + page + "&include_fields=type");
+                URI uri = UriComponentsBuilder.fromUriString(baseUrl + "/" + collection + "/documents/search")
+                        .queryParam("q", "*")
+                        .queryParam("query_by", "title")
+                        .queryParam("per_page", perPage)
+                        .queryParam("page", page)
+                        .queryParam("include_fields", "type")
+                        .build()
+                        .toUri();
 
                 ResponseEntity<Map> response = restTemplate.exchange(uri, HttpMethod.GET, request, Map.class);
                 if (response.getBody() == null || response.getBody().get("hits") == null) break;
@@ -318,5 +335,170 @@ public class TypesenseServiceImpl implements TypesenseService {
         }
 
         return types;
+    }
+
+    @Override
+    public int importIncremental(String collection, Integer targetYear, int earlyExitThreshold) {
+        try {
+            int page = 1;
+            int perPage = 100;
+            int newRecordsCount = 0;
+            int consecutiveExistingCount = 0;
+            boolean hasMore = true;
+
+            int threshold = earlyExitThreshold > 0 ? earlyExitThreshold : 30;
+
+            // Determine filter condition based on targetYear
+            String filterBy = (targetYear != null && targetYear > 0)
+                    ? "year:=" + targetYear
+                    : "year:>=2024";
+
+            DateTimeFormatter formatter = new DateTimeFormatterBuilder()
+                    .parseCaseInsensitive()
+                    .appendPattern("d MMMM uuuu")
+                    .optionalStart()
+                    .appendPattern("d MMM uuuu")
+                    .optionalEnd()
+                    .toFormatter(Locale.ENGLISH);
+
+            while (hasMore) {
+                String includeFields;
+                if (collection.equals("project") || collection.equals("outreach")) {
+                    includeFields = "abstract,sdg,title,slug,start,year,organization,type";
+                } else if (collection.equals("patent")) {
+                    includeFields = "abstract,sdg,title,slug,date,year,organization,type";
+                } else {
+                    includeFields = "abstract,sdg,title,slug,year,organization,type";
+                }
+
+                URI uri = UriComponentsBuilder.fromUriString(baseUrl + "/" + collection + "/documents/search")
+                        .queryParam("q", "*")
+                        .queryParam("query_by", "title")
+                        .queryParam("per_page", perPage)
+                        .queryParam("page", page)
+                        .queryParam("filter_by", filterBy)
+                        .queryParam("sort_by", "year:desc")
+                        .queryParam("include_fields", includeFields)
+                        .build()
+                        .toUri();
+
+                HttpHeaders headers = new HttpHeaders();
+                headers.set("X-TYPESENSE-API-KEY", apiKey);
+                HttpEntity<Void> request = new HttpEntity<>(headers);
+
+                ResponseEntity<Map> response = restTemplate.exchange(uri, HttpMethod.GET, request, Map.class);
+                if (response.getBody() == null || response.getBody().get("hits") == null) break;
+
+                List<Map<String, Object>> hits = (List<Map<String, Object>>) response.getBody().get("hits");
+                if (hits.isEmpty()) break;
+
+                for (Map<String, Object> hit : hits) {
+                    Map<String, Object> doc = (Map<String, Object>) hit.get("document");
+                    if (doc == null) continue;
+
+                    String abstractText = (String) doc.get("abstract");
+                    String title = (String) doc.get("title");
+                    String slug = (String) doc.get("slug");
+
+                    int year = 0;
+                    Object yearObj = doc.get("year");
+                    if (yearObj != null) {
+                        try {
+                            year = Integer.parseInt(String.valueOf(yearObj).trim());
+                        } catch (NumberFormatException ignored) {}
+                    }
+
+                    List<String> sdg = (List<String>) doc.get("sdg");
+                    if (sdg != null) {
+                        sdg.replaceAll(goal -> {
+                            if (goal != null && goal.trim().equalsIgnoreCase("GOAL 16: Peace and Justice Strong Institutions")) {
+                                return "GOAL 16: Peace, Justice and Strong Institutions";
+                            }
+                            return goal;
+                        });
+                    }
+
+                    String type = (String) doc.get("type");
+                    LocalDate eventDate = null;
+                    String dateStr = null;
+                    if (collection.equals("project") || collection.equals("outreach")) {
+                        dateStr = (String) doc.get("start");
+                    } else if (collection.equals("patent")) {
+                        dateStr = (String) doc.get("date");
+                    }
+
+                    if (dateStr != null && !dateStr.trim().isEmpty()) {
+                        try {
+                            eventDate = LocalDate.parse(dateStr.trim(), formatter);
+                        } catch (DateTimeParseException ignored) {}
+                    }
+
+                    if ((collection.equals("paper") || collection.equals("thesis")) && year > 0) {
+                        eventDate = LocalDate.of(year, 1, 1);
+                    }
+
+                    if ((collection.equals("paper") || collection.equals("thesis")) && abstractText != null && !abstractText.trim().isEmpty()) {
+                        String trimmed = abstractText.trim();
+                        if (!trimmed.startsWith("<p>")) {
+                            abstractText = "<p>" + trimmed + "</p>";
+                        }
+                    }
+
+                    List<String> orgStrings = (List<String>) doc.get("organization");
+                    List<Long> organizations = new ArrayList<>();
+                    if (orgStrings != null) {
+                        for (String org : orgStrings) {
+                            try {
+                                long orgId = Long.parseLong(org);
+                                if (orgId <= 12) organizations.add(orgId);
+                            } catch (NumberFormatException ignored) {}
+                        }
+                    }
+
+                    boolean invalid = (title == null || title.trim().isEmpty()) ||
+                            (slug == null || slug.trim().isEmpty()) ||
+                            (sdg == null || sdg.isEmpty()) ||
+                            (!"patent".equals(collection) && (abstractText == null || abstractText.trim().isEmpty()));
+
+                    if (invalid) continue;
+
+                    TypesenseNewsExportDTO dto = new TypesenseNewsExportDTO();
+                    dto.setAbstractText(abstractText);
+                    dto.setTitle(title);
+                    dto.setUrl(slug);
+                    dto.setSdg(sdg);
+                    dto.setDateTime(eventDate);
+                    dto.setScholarName(collection);
+                    dto.setYear(String.valueOf(year));
+                    dto.setOrganizations(organizations);
+                    dto.setType(type);
+
+                    boolean isNew = newsImportService.importOrUpdateFromTypesense(dto);
+
+                    if (isNew) {
+                        newRecordsCount++;
+                        consecutiveExistingCount = 0; // Reset counter on any new record
+                    } else {
+                        consecutiveExistingCount++;
+                        if (consecutiveExistingCount >= threshold) {
+                            System.out.println("🛑 Reached " + threshold + " consecutive existing records for ["
+                                    + collection + "]. Stopping early.");
+                            hasMore = false;
+                            break;
+                        }
+                    }
+                }
+
+                if (hits.size() < perPage) {
+                    hasMore = false;
+                }
+                page++;
+            }
+
+            System.out.println("✅ Incremental sync finished for [" + collection + "]. New records: " + newRecordsCount);
+            return newRecordsCount;
+        } catch (Exception e) {
+            throw new RuntimeException("Error during incremental sync: " + e.getMessage(), e);
+        }
     }
 }

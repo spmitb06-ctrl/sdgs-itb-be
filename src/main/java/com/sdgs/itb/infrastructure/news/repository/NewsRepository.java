@@ -20,8 +20,8 @@ public interface NewsRepository extends JpaRepository<News, Long>, JpaSpecificat
     @Query("SELECT a FROM News a WHERE LOWER(a.sourceUrl) = LOWER(:url)")
     Optional<News> findBySourceUrl(@Param("url") String url);
 
-    @Query("SELECT a FROM News a WHERE LOWER(a.title) = LOWER(:title)")
-    Optional<News> findByTitleIgnoreCase(@Param("title") String title);
+    @Query("SELECT a FROM News a WHERE LOWER(a.title) = LOWER(:title) ORDER BY a.id ASC")
+    List<News> findByTitleIgnoreCase(@Param("title") String title);
 
     @Query("""
         SELECT n FROM News n

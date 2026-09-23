@@ -10,5 +10,5 @@ public interface TypesenseService {
     void importAllFromTypesense(String collection);
     void streamExport(String collection, HttpServletResponse response);
     Set<String> getTypesByCollection(String collection);
-
+    int importIncremental(String collection, Integer year, int earlyExitThreshold);
 }
