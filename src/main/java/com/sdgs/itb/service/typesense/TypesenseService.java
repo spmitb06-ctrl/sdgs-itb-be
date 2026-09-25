@@ -7,6 +7,7 @@ import java.util.Set;
 public interface TypesenseService {
     int searchCount(String collection, String sdg);
     void importSampleFromTypesense(int limit, String collection);
+    void importSampleFromTypesense(int limit, String collection, Integer year);
     void importAllFromTypesense(String collection);
     void streamExport(String collection, HttpServletResponse response);
     Set<String> getTypesByCollection(String collection);

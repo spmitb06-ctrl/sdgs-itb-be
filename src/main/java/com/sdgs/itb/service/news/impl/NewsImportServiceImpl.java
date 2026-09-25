@@ -18,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -29,18 +31,36 @@ public class NewsImportServiceImpl implements NewsImportService {
     private final NewsCategoryRepository newsCategoryRepository;
     private final UnitRepository unitRepository;
 
-    private final Map<String, Goal> goalCache = new HashMap<>();
+    // Map by goalNumber (1 - 17) instead of full title string
+    private final Map<Integer, Goal> goalCache = new HashMap<>();
     private final Map<String, Scholar> scholarCache = new HashMap<>();
     private final Map<String, NewsCategory> categoryCache = new HashMap<>();
     private final Map<Long, List<Unit>> unitCache = new HashMap<>();
 
-    @Override
-    @Transactional
-    public News importFromTypesense(TypesenseNewsExportDTO dto) {
-        // ---- Initialize caches ----
+    // Regex to match "goal 1", "GOAL 17", "Goal 3:", "goal: 5", etc.
+    private static final Pattern GOAL_NUMBER_PATTERN = Pattern.compile("(?i)^goal\\s*:?\\s*(\\d{1,2})");
+
+    /**
+     * Resolves a Goal entity by matching the leading "GOAL [1-17]" pattern
+     */
+    private Goal resolveGoalFromSdgString(String rawSdg) {
+        if (rawSdg == null) return null;
+        Matcher matcher = GOAL_NUMBER_PATTERN.matcher(rawSdg.trim());
+        if (matcher.find()) {
+            try {
+                int goalNumber = Integer.parseInt(matcher.group(1));
+                if (goalNumber >= 1 && goalNumber <= 17) {
+                    return goalCache.get(goalNumber);
+                }
+            } catch (NumberFormatException ignored) {}
+        }
+        return null;
+    }
+
+    private void initializeCaches() {
         if (goalCache.isEmpty()) {
             goalRepository.findAll().forEach(goal ->
-                    goalCache.put(goal.getTitle().toLowerCase().trim(), goal)
+                    goalCache.put(goal.getGoalNumber(), goal)
             );
         }
         if (scholarCache.isEmpty()) {
@@ -53,12 +73,17 @@ public class NewsImportServiceImpl implements NewsImportService {
                     categoryCache.put(category.getCategory().toLowerCase().trim(), category)
             );
         }
-
         if (unitCache.isEmpty()) {
             for (long i = 1; i <= 12; i++) {
                 unitCache.put(i, unitRepository.findByOrganizationId(i));
             }
         }
+    }
+
+    @Override
+    @Transactional
+    public News importFromTypesense(TypesenseNewsExportDTO dto) {
+        initializeCaches();
 
         String scholarName = dto.getScholarName().toLowerCase().trim();
         String cleanTitle = dto.getTitle() != null ? dto.getTitle().trim() : "";
@@ -69,31 +94,31 @@ public class NewsImportServiceImpl implements NewsImportService {
         String defaultContent = dto.getAbstractText();
 
         if ("outreach".equals(scholarName)) {
-            fullSourceUrl = "https://scholar.itb.ac.id/outreach/" + dto.getUrl();
+            fullSourceUrl = "https://scholar.itb.ac.id/outreach_detail/" + dto.getUrl();
             thumbnailUrl = "/news/outreach.jpg";
         } else if ("project".equals(scholarName) && "pengabdian".equalsIgnoreCase(dto.getType())) {
-            fullSourceUrl = "https://scholar.itb.ac.id/project/" + dto.getUrl();
+            fullSourceUrl = "https://scholar.itb.ac.id/project_detail/" + dto.getUrl();
             thumbnailUrl = "/news/community-service.jpg";
         } else {
             switch (scholarName) {
                 case "project" -> {
-                    fullSourceUrl = "https://scholar.itb.ac.id/project/" + dto.getUrl();
+                    fullSourceUrl = "https://scholar.itb.ac.id/project_detail/" + dto.getUrl();
                     thumbnailUrl = "/news/project.jpg";
                 }
                 case "paper" -> {
-                    fullSourceUrl = "https://scholar.itb.ac.id/paper/" + dto.getUrl();
+                    fullSourceUrl = "https://scholar.itb.ac.id/paper_detail/" + dto.getUrl();
                     thumbnailUrl = "/news/paper.jpeg";
                 }
                 case "patent" -> {
-                    fullSourceUrl = "https://scholar.itb.ac.id/patent/" + dto.getUrl();
+                    fullSourceUrl = "https://scholar.itb.ac.id/paten_detail/" + dto.getUrl();
                     thumbnailUrl = "/news/patent.jpg";
                 }
                 case "thesis" -> {
-                    fullSourceUrl = "https://scholar.itb.ac.id/thesis/" + dto.getUrl();
+                    fullSourceUrl = "https://scholar.itb.ac.id/thesis_detail/" + dto.getUrl();
                     thumbnailUrl = "/news/thesis.jpeg";
                 }
                 default -> {
-                    fullSourceUrl = "https://scholar.itb.ac.id/" + scholarName + "/" + dto.getUrl();
+                    fullSourceUrl = "https://scholar.itb.ac.id/" + scholarName + "_detail/" + dto.getUrl();
                     thumbnailUrl = "/news/default.jpg";
                 }
             }
@@ -112,13 +137,12 @@ public class NewsImportServiceImpl implements NewsImportService {
         if (existingOpt.isPresent()) {
             News existing = existingOpt.get();
 
-            // Add any missing goals
+            // Add any missing goals using flexible number matching
             if (dto.getSdg() != null && !dto.getSdg().isEmpty()) {
                 dto.getSdg().stream()
-                        .map(s -> s.toLowerCase().trim())
                         .distinct()
-                        .forEach(sdgName -> {
-                            Goal goal = goalCache.get(sdgName);
+                        .forEach(sdgStr -> {
+                            Goal goal = resolveGoalFromSdgString(sdgStr);
                             if (goal != null) {
                                 existing.addGoal(goal);
                             }
@@ -161,13 +185,12 @@ public class NewsImportServiceImpl implements NewsImportService {
         newNews.setNewsCategory(category);
         newNews.setScholar(scholar);
 
-        // Add goals before saving
+        // Add goals before saving using flexible number matching
         if (dto.getSdg() != null && !dto.getSdg().isEmpty()) {
             dto.getSdg().stream()
-                    .map(s -> s.toLowerCase().trim())
                     .distinct()
-                    .forEach(sdgName -> {
-                        Goal goal = goalCache.get(sdgName);
+                    .forEach(sdgStr -> {
+                        Goal goal = resolveGoalFromSdgString(sdgStr);
                         if (goal != null) {
                             newNews.addGoal(goal);
                         }
@@ -184,34 +207,13 @@ public class NewsImportServiceImpl implements NewsImportService {
             }
         }
 
-        // Single atomic save
         return newsRepository.save(newNews);
     }
 
     @Override
     @Transactional
     public boolean importOrUpdateFromTypesense(TypesenseNewsExportDTO dto) {
-        // ---- Initialize caches ----
-        if (goalCache.isEmpty()) {
-            goalRepository.findAll().forEach(goal ->
-                    goalCache.put(goal.getTitle().toLowerCase().trim(), goal)
-            );
-        }
-        if (scholarCache.isEmpty()) {
-            scholarRepository.findAll().forEach(scholar ->
-                    scholarCache.put(scholar.getName().toLowerCase().trim(), scholar)
-            );
-        }
-        if (categoryCache.isEmpty()) {
-            newsCategoryRepository.findAll().forEach(category ->
-                    categoryCache.put(category.getCategory().toLowerCase().trim(), category)
-            );
-        }
-        if (unitCache.isEmpty()) {
-            for (long i = 1; i <= 12; i++) {
-                unitCache.put(i, unitRepository.findByOrganizationId(i));
-            }
-        }
+        initializeCaches();
 
         String scholarName = dto.getScholarName().toLowerCase().trim();
         String cleanTitle = dto.getTitle() != null ? dto.getTitle().trim() : "";
@@ -265,17 +267,16 @@ public class NewsImportServiceImpl implements NewsImportService {
             News existing = existingOpt.get();
             if (dto.getSdg() != null && !dto.getSdg().isEmpty()) {
                 dto.getSdg().stream()
-                        .map(s -> s.toLowerCase().trim())
                         .distinct()
-                        .forEach(sdgName -> {
-                            Goal goal = goalCache.get(sdgName);
+                        .forEach(sdgStr -> {
+                            Goal goal = resolveGoalFromSdgString(sdgStr);
                             if (goal != null) {
                                 existing.addGoal(goal);
                             }
                         });
             }
             newsRepository.save(existing);
-            return false; // Document was already present
+            return false;
         }
 
         // 3. Resolve Category & Scholar
@@ -311,10 +312,9 @@ public class NewsImportServiceImpl implements NewsImportService {
 
         if (dto.getSdg() != null && !dto.getSdg().isEmpty()) {
             dto.getSdg().stream()
-                    .map(s -> s.toLowerCase().trim())
                     .distinct()
-                    .forEach(sdgName -> {
-                        Goal goal = goalCache.get(sdgName);
+                    .forEach(sdgStr -> {
+                        Goal goal = resolveGoalFromSdgString(sdgStr);
                         if (goal != null) {
                             newNews.addGoal(goal);
                         }
@@ -331,6 +331,6 @@ public class NewsImportServiceImpl implements NewsImportService {
         }
 
         newsRepository.save(newNews);
-        return true; // Newly created record
+        return true;
     }
 }

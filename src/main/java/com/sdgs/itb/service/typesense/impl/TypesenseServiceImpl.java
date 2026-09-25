@@ -60,17 +60,22 @@ public class TypesenseServiceImpl implements TypesenseService {
 
     @Override
     public void importSampleFromTypesense(int limit, String collection) {
+        importSampleFromTypesense(limit, collection, null);
+    }
+
+    @Override
+    public void importSampleFromTypesense(int limit, String collection, Integer year) {
         int safeLimit = (limit > 0) ? limit : 10;
-        importFromTypesenseInternal(collection, safeLimit);
+        importFromTypesenseInternal(collection, safeLimit, year);
     }
 
     @Override
     public void importAllFromTypesense(String collection) {
-        importFromTypesenseInternal(collection, Integer.MAX_VALUE);
+        importFromTypesenseInternal(collection, Integer.MAX_VALUE, null);
     }
 
     @SuppressWarnings("unchecked")
-    private void importFromTypesenseInternal(String collection, int importLimit) {
+    private void importFromTypesenseInternal(String collection, int importLimit, Integer targetYear) {
         try {
             int page = 1;
             int perPage = 200;
@@ -78,6 +83,9 @@ public class TypesenseServiceImpl implements TypesenseService {
             boolean hasMore = true;
 
             int cutoffYear = 2024;
+            String filterBy = (targetYear != null && targetYear > 0)
+                    ? "year:=" + targetYear
+                    : "year:>=" + cutoffYear;
 
             DateTimeFormatter formatter = new DateTimeFormatterBuilder()
                     .parseCaseInsensitive()
@@ -102,7 +110,7 @@ public class TypesenseServiceImpl implements TypesenseService {
                         .queryParam("query_by", "title")
                         .queryParam("per_page", perPage)
                         .queryParam("page", page)
-                        .queryParam("filter_by", "year:>=" + cutoffYear)
+                        .queryParam("filter_by", filterBy)
                         .queryParam("sort_by", "year:desc")
                         .queryParam("include_fields", includeFields)
                         .build()
@@ -136,7 +144,13 @@ public class TypesenseServiceImpl implements TypesenseService {
                             year = Integer.parseInt(String.valueOf(yearObj).trim());
                         } catch (NumberFormatException ignored) {}
                     }
-                    if (year < cutoffYear) continue;
+
+                    // Client-side year validation
+                    if (targetYear != null && targetYear > 0) {
+                        if (year != targetYear) continue;
+                    } else if (year < cutoffYear) {
+                        continue;
+                    }
 
                     List<String> sdg = (List<String>) doc.get("sdg");
                     if (sdg != null) {
@@ -213,7 +227,8 @@ public class TypesenseServiceImpl implements TypesenseService {
                 page++;
             }
 
-            System.out.println("✅ Imported " + importedCount + " records from Typesense [" + collection + "]");
+            System.out.println("✅ Imported " + importedCount + " records from Typesense [" + collection + "]"
+                    + (targetYear != null ? " for year " + targetYear : ""));
         } catch (Exception e) {
             throw new RuntimeException("Error while import: " + e.getMessage(), e);
         }
@@ -409,14 +424,14 @@ public class TypesenseServiceImpl implements TypesenseService {
                     }
 
                     List<String> sdg = (List<String>) doc.get("sdg");
-                    if (sdg != null) {
-                        sdg.replaceAll(goal -> {
-                            if (goal != null && goal.trim().equalsIgnoreCase("GOAL 16: Peace and Justice Strong Institutions")) {
-                                return "GOAL 16: Peace, Justice and Strong Institutions";
-                            }
-                            return goal;
-                        });
-                    }
+//                    if (sdg != null) {
+//                        sdg.replaceAll(goal -> {
+//                            if (goal != null && goal.trim().equalsIgnoreCase("GOAL 16: Peace and Justice Strong Institutions")) {
+//                                return "GOAL 16: Peace, Justice and Strong Institutions";
+//                            }
+//                            return goal;
+//                        });
+//                    }
 
                     String type = (String) doc.get("type");
                     LocalDate eventDate = null;

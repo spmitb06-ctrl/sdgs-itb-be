@@ -6,7 +6,6 @@ import com.sdgs.itb.infrastructure.news.dto.NewsGoalStatsDTO;
 import java.util.List;
 
 public interface NewsStatsService {
-    List<NewsGoalStatsDTO> getNewsStatsByGoal(Integer year, Long categoryId);
+    List<NewsGoalStatsDTO> getNewsStatsByGoal(Integer year, Long categoryId, List<Long> scholarIds);
     List<NewsCategoryStatsDTO> getNewsStatsByCategory(Integer year, Long goalId);
 }
-

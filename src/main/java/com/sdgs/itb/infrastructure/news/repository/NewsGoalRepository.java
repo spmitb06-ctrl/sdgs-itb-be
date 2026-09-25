@@ -37,21 +37,21 @@ public interface NewsGoalRepository extends JpaRepository<NewsGoal, Long> {
             g.title,
             g.color,
             g.icon,
-            COUNT(ng.id)
+            COUNT(DISTINCT n.id)
         )
         FROM NewsGoal ng
         JOIN ng.goal g
         JOIN ng.news n
         WHERE n.deletedAt IS NULL
-            AND (:year IS NULL OR EXTRACT(YEAR FROM n.eventDate) = :year)
-            AND (:categoryId IS NULL OR n.newsCategory.id = :categoryId)
+          AND (:year IS NULL OR EXTRACT(YEAR FROM n.eventDate) = :year)
+          AND (:categoryId IS NULL OR n.newsCategory.id = :categoryId)
+          AND (:scholarIds IS NULL OR n.scholar.id IN :scholarIds)
         GROUP BY g.id, g.goalNumber, g.title, g.color, g.icon
         ORDER BY g.goalNumber
     """)
     List<NewsGoalStatsDTO> findNewsCountByGoal(
             @Param("year") Integer year,
-            @Param("categoryId") Long categoryId
+            @Param("categoryId") Long categoryId,
+            @Param("scholarIds") List<Long> scholarIds
     );
-
-
 }
