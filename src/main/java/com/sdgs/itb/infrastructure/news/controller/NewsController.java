@@ -174,10 +174,18 @@ public class NewsController {
     @GetMapping("/stats/goals")
     public ResponseEntity<ApiResponse<List<NewsGoalStatsDTO>>> getNewsStatsByGoal(
             @RequestParam(required = false) Integer year,
-            @RequestParam(required = false) Long categoryId
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String scholarIds
     ) {
         try {
-            List<NewsGoalStatsDTO> stats = newsStatsService.getNewsStatsByGoal(year, categoryId);
+            List<Long> scholarIdList = scholarIds != null && !scholarIds.trim().isEmpty()
+                    ? Arrays.stream(scholarIds.split(","))
+                    .map(String::trim)
+                    .map(Long::parseLong)
+                    .toList()
+                    : List.of();
+
+            List<NewsGoalStatsDTO> stats = newsStatsService.getNewsStatsByGoal(year, categoryId, scholarIdList);
             return ApiResponse.success(
                     HttpStatus.OK.value(),
                     "News statistics by goal fetched successfully",

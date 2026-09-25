@@ -19,7 +19,7 @@ public class NewsCategoryDataSeeder implements CommandLineRunner {
         if (newsCategoryRepository.count() == 0) {
             List<NewsCategory> categories = List.of(
                     NewsCategory.builder().category("Community Service").build(),
-                    NewsCategory.builder().category("Publication, Research & Paper").build()
+                    NewsCategory.builder().category("Research & Publication").build()
             );
             newsCategoryRepository.saveAll(categories);
             System.out.println("✅ News Category data seeded successfully!");

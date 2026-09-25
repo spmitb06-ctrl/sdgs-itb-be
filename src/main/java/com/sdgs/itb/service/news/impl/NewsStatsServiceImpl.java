@@ -18,8 +18,9 @@ public class NewsStatsServiceImpl implements NewsStatsService {
     private final NewsCategoryRepository newsCategoryRepository;
 
     @Override
-    public List<NewsGoalStatsDTO> getNewsStatsByGoal(Integer year, Long categoryId) {
-        return newsGoalRepository.findNewsCountByGoal(year, categoryId);
+    public List<NewsGoalStatsDTO> getNewsStatsByGoal(Integer year, Long categoryId, List<Long> scholarIds) {
+        List<Long> targetScholarIds = (scholarIds != null && !scholarIds.isEmpty()) ? scholarIds : null;
+        return newsGoalRepository.findNewsCountByGoal(year, categoryId, targetScholarIds);
     }
 
     @Override
