@@ -31,48 +31,55 @@ public class NewsImportServiceImpl implements NewsImportService {
     private final NewsCategoryRepository newsCategoryRepository;
     private final UnitRepository unitRepository;
 
-    // Map by goalNumber (1 - 17) instead of full title string
-    private final Map<Integer, Goal> goalCache = new HashMap<>();
+    // Cache goals by their number (1 to 17)
+    private final Map<Integer, Goal> goalByNumberCache = new HashMap<>();
     private final Map<String, Scholar> scholarCache = new HashMap<>();
     private final Map<String, NewsCategory> categoryCache = new HashMap<>();
     private final Map<Long, List<Unit>> unitCache = new HashMap<>();
 
-    // Regex to match "goal 1", "GOAL 17", "Goal 3:", "goal: 5", etc.
-    private static final Pattern GOAL_NUMBER_PATTERN = Pattern.compile("(?i)^goal\\s*:?\\s*(\\d{1,2})");
+    // Strict front match: "GOAL 17", "goal 17", "Goal17", "Goal 1:", etc.
+    private static final Pattern FRONT_GOAL_PATTERN = Pattern.compile("(?i)^\\s*goal\\s*(\\d{1,2})");
 
-    /**
-     * Resolves a Goal entity by matching the leading "GOAL [1-17]" pattern
-     */
-    private Goal resolveGoalFromSdgString(String rawSdg) {
-        if (rawSdg == null) return null;
-        Matcher matcher = GOAL_NUMBER_PATTERN.matcher(rawSdg.trim());
+    private Integer extractGoalNumber(String text) {
+        if (text == null || text.trim().isEmpty()) return null;
+        Matcher matcher = FRONT_GOAL_PATTERN.matcher(text.trim());
         if (matcher.find()) {
             try {
-                int goalNumber = Integer.parseInt(matcher.group(1));
-                if (goalNumber >= 1 && goalNumber <= 17) {
-                    return goalCache.get(goalNumber);
+                int num = Integer.parseInt(matcher.group(1));
+                if (num >= 1 && num <= 17) {
+                    return num;
                 }
             } catch (NumberFormatException ignored) {}
         }
         return null;
     }
 
-    private void initializeCaches() {
-        if (goalCache.isEmpty()) {
-            goalRepository.findAll().forEach(goal ->
-                    goalCache.put(goal.getGoalNumber(), goal)
-            );
+    private void initCaches() {
+        if (goalByNumberCache.isEmpty()) {
+            List<Goal> allGoals = goalRepository.findAll();
+            for (Goal g : allGoals) {
+                Integer number = g.getGoalNumber();
+                if (number == null || number < 1 || number > 17) {
+                    number = extractGoalNumber(g.getTitle());
+                }
+                if (number != null && number >= 1 && number <= 17) {
+                    goalByNumberCache.put(number, g);
+                }
+            }
         }
+
         if (scholarCache.isEmpty()) {
             scholarRepository.findAll().forEach(scholar ->
                     scholarCache.put(scholar.getName().toLowerCase().trim(), scholar)
             );
         }
+
         if (categoryCache.isEmpty()) {
             newsCategoryRepository.findAll().forEach(category ->
                     categoryCache.put(category.getCategory().toLowerCase().trim(), category)
             );
         }
+
         if (unitCache.isEmpty()) {
             for (long i = 1; i <= 12; i++) {
                 unitCache.put(i, unitRepository.findByOrganizationId(i));
@@ -80,15 +87,23 @@ public class NewsImportServiceImpl implements NewsImportService {
         }
     }
 
+    private Goal resolveGoal(String rawSdg) {
+        Integer num = extractGoalNumber(rawSdg);
+        if (num != null) {
+            return goalByNumberCache.get(num);
+        }
+        return null;
+    }
+
     @Override
     @Transactional
     public News importFromTypesense(TypesenseNewsExportDTO dto) {
-        initializeCaches();
+        initCaches();
 
         String scholarName = dto.getScholarName().toLowerCase().trim();
         String cleanTitle = dto.getTitle() != null ? dto.getTitle().trim() : "";
 
-        // 1. Resolve full sourceUrl & thumbnailUrl FIRST
+        // 1. Resolve URLs
         String fullSourceUrl;
         String thumbnailUrl;
         String defaultContent = dto.getAbstractText();
@@ -124,9 +139,8 @@ public class NewsImportServiceImpl implements NewsImportService {
             }
         }
 
-        // 2. DEDUPLICATION: Check by fullSourceUrl OR by clean title
+        // 2. Deduplication Check
         Optional<News> existingOpt = newsRepository.findBySourceUrl(fullSourceUrl);
-
         if (existingOpt.isEmpty() && !cleanTitle.isEmpty()) {
             List<News> matches = newsRepository.findByTitleIgnoreCase(cleanTitle);
             if (!matches.isEmpty()) {
@@ -137,16 +151,13 @@ public class NewsImportServiceImpl implements NewsImportService {
         if (existingOpt.isPresent()) {
             News existing = existingOpt.get();
 
-            // Add any missing goals using flexible number matching
             if (dto.getSdg() != null && !dto.getSdg().isEmpty()) {
-                dto.getSdg().stream()
-                        .distinct()
-                        .forEach(sdgStr -> {
-                            Goal goal = resolveGoalFromSdgString(sdgStr);
-                            if (goal != null) {
-                                existing.addGoal(goal);
-                            }
-                        });
+                dto.getSdg().forEach(sdgStr -> {
+                    Goal goal = resolveGoal(sdgStr);
+                    if (goal != null) {
+                        existing.addGoal(goal);
+                    }
+                });
             }
 
             return newsRepository.save(existing);
@@ -174,7 +185,7 @@ public class NewsImportServiceImpl implements NewsImportService {
             throw new IllegalArgumentException("Scholar not found: " + scholarName);
         }
 
-        // 5. Build New News Entity
+        // 5. Build New Entity
         News newNews = new News();
         newNews.setTitle(cleanTitle);
         newNews.setContent(defaultContent);
@@ -185,19 +196,17 @@ public class NewsImportServiceImpl implements NewsImportService {
         newNews.setNewsCategory(category);
         newNews.setScholar(scholar);
 
-        // Add goals before saving using flexible number matching
+        // Add goals using number extractor
         if (dto.getSdg() != null && !dto.getSdg().isEmpty()) {
-            dto.getSdg().stream()
-                    .distinct()
-                    .forEach(sdgStr -> {
-                        Goal goal = resolveGoalFromSdgString(sdgStr);
-                        if (goal != null) {
-                            newNews.addGoal(goal);
-                        }
-                    });
+            dto.getSdg().forEach(sdgStr -> {
+                Goal goal = resolveGoal(sdgStr);
+                if (goal != null) {
+                    newNews.addGoal(goal);
+                }
+            });
         }
 
-        // Add units before saving
+        // Add units
         if (dto.getOrganizations() != null && !dto.getOrganizations().isEmpty()) {
             for (Long orgId : dto.getOrganizations()) {
                 List<Unit> units = unitCache.getOrDefault(orgId, Collections.emptyList());
@@ -213,12 +222,11 @@ public class NewsImportServiceImpl implements NewsImportService {
     @Override
     @Transactional
     public boolean importOrUpdateFromTypesense(TypesenseNewsExportDTO dto) {
-        initializeCaches();
+        initCaches();
 
         String scholarName = dto.getScholarName().toLowerCase().trim();
         String cleanTitle = dto.getTitle() != null ? dto.getTitle().trim() : "";
 
-        // 1. Resolve full sourceUrl & thumbnailUrl
         String fullSourceUrl;
         String thumbnailUrl;
         String defaultContent = dto.getAbstractText();
@@ -254,7 +262,6 @@ public class NewsImportServiceImpl implements NewsImportService {
             }
         }
 
-        // 2. Deduplication check
         Optional<News> existingOpt = newsRepository.findBySourceUrl(fullSourceUrl);
         if (existingOpt.isEmpty() && !cleanTitle.isEmpty()) {
             List<News> matches = newsRepository.findByTitleIgnoreCase(cleanTitle);
@@ -266,20 +273,17 @@ public class NewsImportServiceImpl implements NewsImportService {
         if (existingOpt.isPresent()) {
             News existing = existingOpt.get();
             if (dto.getSdg() != null && !dto.getSdg().isEmpty()) {
-                dto.getSdg().stream()
-                        .distinct()
-                        .forEach(sdgStr -> {
-                            Goal goal = resolveGoalFromSdgString(sdgStr);
-                            if (goal != null) {
-                                existing.addGoal(goal);
-                            }
-                        });
+                dto.getSdg().forEach(sdgStr -> {
+                    Goal goal = resolveGoal(sdgStr);
+                    if (goal != null) {
+                        existing.addGoal(goal);
+                    }
+                });
             }
             newsRepository.save(existing);
             return false;
         }
 
-        // 3. Resolve Category & Scholar
         NewsCategory category;
         if ("outreach".equals(scholarName) || ("project".equals(scholarName) && "pengabdian".equalsIgnoreCase(dto.getType()))) {
             category = categoryCache.get("community service");
@@ -299,7 +303,6 @@ public class NewsImportServiceImpl implements NewsImportService {
             throw new IllegalArgumentException("Scholar not found: " + scholarName);
         }
 
-        // 4. Build New Entity
         News newNews = new News();
         newNews.setTitle(cleanTitle);
         newNews.setContent(defaultContent);
@@ -311,14 +314,12 @@ public class NewsImportServiceImpl implements NewsImportService {
         newNews.setScholar(scholar);
 
         if (dto.getSdg() != null && !dto.getSdg().isEmpty()) {
-            dto.getSdg().stream()
-                    .distinct()
-                    .forEach(sdgStr -> {
-                        Goal goal = resolveGoalFromSdgString(sdgStr);
-                        if (goal != null) {
-                            newNews.addGoal(goal);
-                        }
-                    });
+            dto.getSdg().forEach(sdgStr -> {
+                Goal goal = resolveGoal(sdgStr);
+                if (goal != null) {
+                    newNews.addGoal(goal);
+                }
+            });
         }
 
         if (dto.getOrganizations() != null && !dto.getOrganizations().isEmpty()) {
