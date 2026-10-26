@@ -39,6 +39,7 @@ public class RankingServiceImpl implements RankingService {
     private final GoalRepository goalRepository;
 
     @Override
+    @Transactional(readOnly = true)
     public List<RankingSystemDTO> getAllRankingSystems() {
         return rankingSystemRepository.findAllActive().stream()
                 .map(RankingMapper::toDTO)
@@ -54,6 +55,7 @@ public class RankingServiceImpl implements RankingService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<RankingOverviewDTO> getOverviews(Long systemId, Long goalId, Integer year, Boolean publishedOnly) {
         Specification<RankingOverview> spec = Specification
                 .where(RankingOverviewSpecification.notDeleted())
@@ -62,8 +64,18 @@ public class RankingServiceImpl implements RankingService {
                 .and(RankingOverviewSpecification.hasYear(year))
                 .and(RankingOverviewSpecification.isPublishedOnly(publishedOnly));
 
-        return overviewRepository.findAll(spec, Sort.by(Sort.Direction.ASC, "goal.goalNumber"))
-                .stream()
+        // Menggunakan sorting id/year di level query agar aman dari null goal
+        List<RankingOverview> overviews = overviewRepository.findAll(
+                spec,
+                Sort.by(Sort.Direction.DESC, "year").and(Sort.by(Sort.Direction.ASC, "id"))
+        );
+
+        // Sorting null-safe berdasarkan goalNumber di Java memory stream
+        return overviews.stream()
+                .sorted(Comparator.comparing(
+                        o -> (o.getGoal() != null ? o.getGoal().getGoalNumber() : 0),
+                        Comparator.nullsFirst(Integer::compareTo)
+                ))
                 .map(RankingMapper::toDTO)
                 .collect(Collectors.toList());
     }
@@ -74,19 +86,27 @@ public class RankingServiceImpl implements RankingService {
         RankingSystem system = rankingSystemRepository.findById(dto.getRankingSystemId())
                 .orElseThrow(() -> new DataNotFoundException("Ranking System not found"));
 
-        Goal goal = goalRepository.findById(dto.getGoalId())
-                .orElseThrow(() -> new DataNotFoundException("Goal not found"));
+        Goal goal = null;
+        if (dto.getGoalId() != null) {
+            goal = goalRepository.findById(dto.getGoalId())
+                    .orElseThrow(() -> new DataNotFoundException("Goal not found"));
+        }
 
-        Optional<RankingOverview> existingOpt = overviewRepository.findBySystemGoalAndYear(
-                system.getId(), goal.getId(), dto.getYear()
-        );
+        Optional<RankingOverview> existingOpt = Optional.empty();
+        if (goal != null) {
+            existingOpt = overviewRepository.findBySystemGoalAndYear(
+                    system.getId(), goal.getId(), dto.getYear()
+            );
+        }
 
+        Goal finalGoal = goal;
         RankingOverview overview = existingOpt.orElseGet(() -> RankingOverview.builder()
                 .rankingSystem(system)
-                .goal(goal)
+                .goal(finalGoal)
                 .year(dto.getYear())
                 .build());
 
+        overview.setGoal(finalGoal);
         overview.setRankPosition(dto.getRankPosition());
         overview.setScore(dto.getScore());
         overview.setContent(dto.getContent());
@@ -119,6 +139,7 @@ public class RankingServiceImpl implements RankingService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<RankingQuestionDTO> getQuestionHierarchy(Long systemId, Long goalId, Integer year) {
         List<RankingQuestion> roots;
         if (goalId != null) {
@@ -144,16 +165,25 @@ public class RankingServiceImpl implements RankingService {
         List<Long> questionIds = new ArrayList<>();
         collectAllQuestionIds(questionDTOs, questionIds);
 
+        if (questionIds.isEmpty()) return;
+
         List<RankingSubmission> submissions = submissionRepository.findByQuestionIdsAndYear(questionIds, year);
         Map<Long, RankingSubmission> submissionMap = submissions.stream()
-                .collect(Collectors.toMap(s -> s.getQuestion().getId(), s -> s));
+                .filter(s -> s.getQuestion() != null)
+                .collect(Collectors.toMap(
+                        s -> s.getQuestion().getId(),
+                        s -> s,
+                        (existing, replacement) -> existing
+                ));
 
         populateSubmissions(questionDTOs, submissionMap);
     }
 
     private void collectAllQuestionIds(List<RankingQuestionDTO> dtos, List<Long> ids) {
         for (RankingQuestionDTO dto : dtos) {
-            ids.add(dto.getId());
+            if (dto.getId() != null) {
+                ids.add(dto.getId());
+            }
             if (dto.getChildren() != null && !dto.getChildren().isEmpty()) {
                 collectAllQuestionIds(dto.getChildren(), ids);
             }
@@ -162,7 +192,7 @@ public class RankingServiceImpl implements RankingService {
 
     private void populateSubmissions(List<RankingQuestionDTO> dtos, Map<Long, RankingSubmission> map) {
         for (RankingQuestionDTO dto : dtos) {
-            if (map.containsKey(dto.getId())) {
+            if (dto.getId() != null && map.containsKey(dto.getId())) {
                 dto.setSubmission(RankingMapper.toDTO(map.get(dto.getId())));
             }
             if (dto.getChildren() != null) {
@@ -190,11 +220,11 @@ public class RankingServiceImpl implements RankingService {
             parent = questionRepository.findById(dto.getParentId())
                     .orElseThrow(() -> new DataNotFoundException("Parent question not found"));
             calculatedLevel = parent.getLevel() + 1;
-            if (calculatedLevel > 3) {
-                throw new IllegalArgumentException("Pertanyaan maksimal sampai Level 3");
+            if (calculatedLevel > 4) {
+                throw new IllegalArgumentException("Pertanyaan maksimal sampai Level 4");
             }
             if (goal == null && parent.getGoal() != null) {
-                goal = parent.getGoal(); // Mewarisi goal dari parent jika level di bawahnya
+                goal = parent.getGoal();
             }
         }
 
@@ -204,7 +234,7 @@ public class RankingServiceImpl implements RankingService {
                 .parent(parent)
                 .code(dto.getCode())
                 .title(dto.getTitle())
-                .content(dto.getContent()) // Konten narasi tersendiri di tiap level
+                .content(dto.getContent())
                 .level(calculatedLevel)
                 .build();
 
@@ -257,7 +287,7 @@ public class RankingServiceImpl implements RankingService {
                 .build());
 
         submission.setAnswerText(dto.getAnswerText());
-        submission.setSourceDocument(dto.getSourceDocument()); // Berupa link URL teks
+        submission.setSourceDocument(dto.getSourceDocument());
 
         RankingSubmission saved = submissionRepository.save(submission);
         return RankingMapper.toDTO(saved);

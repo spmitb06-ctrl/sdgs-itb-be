@@ -4,12 +4,13 @@ import com.sdgs.itb.entity.ranking.RankingOverview;
 import com.sdgs.itb.entity.ranking.RankingQuestion;
 import com.sdgs.itb.entity.ranking.RankingSubmission;
 import com.sdgs.itb.entity.ranking.RankingSystem;
-import com.sdgs.itb.infrastructure.goal.mapper.GoalMapper;
+import com.sdgs.itb.infrastructure.goal.dto.GoalDTO;
 import com.sdgs.itb.infrastructure.ranking.dto.RankingOverviewDTO;
 import com.sdgs.itb.infrastructure.ranking.dto.RankingQuestionDTO;
 import com.sdgs.itb.infrastructure.ranking.dto.RankingSubmissionDTO;
 import com.sdgs.itb.infrastructure.ranking.dto.RankingSystemDTO;
 
+import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 public class RankingMapper {
@@ -59,26 +60,39 @@ public class RankingMapper {
                 .content(entity.getContent())
                 .level(entity.getLevel())
                 .children(entity.getChildren() != null ? entity.getChildren().stream()
-                        .filter(c -> c.getDeletedAt() == null)
+                        .filter(c -> c != null && c.getDeletedAt() == null)
                         .map(RankingMapper::toDTO)
-                        .collect(Collectors.toList()) : null)
+                        .collect(Collectors.toList()) : new ArrayList<>())
                 .build();
     }
 
     public static RankingOverviewDTO toDTO(RankingOverview entity) {
         if (entity == null) return null;
+
+        GoalDTO goalDto = null;
+        if (entity.getGoal() != null) {
+            goalDto = GoalDTO.builder()
+                    .id(entity.getGoal().getId())
+                    .goalNumber(entity.getGoal().getGoalNumber())
+                    .title(entity.getGoal().getTitle())
+                    .color(entity.getGoal().getColor())
+                    .icon(entity.getGoal().getIcon())
+                    .description(entity.getGoal().getDescription())
+                    .build();
+        }
+
         return RankingOverviewDTO.builder()
                 .id(entity.getId())
                 .rankingSystemId(entity.getRankingSystem() != null ? entity.getRankingSystem().getId() : null)
                 .rankingSystemName(entity.getRankingSystem() != null ? entity.getRankingSystem().getName() : null)
                 .rankingSystemCode(entity.getRankingSystem() != null ? entity.getRankingSystem().getCode() : null)
                 .goalId(entity.getGoal() != null ? entity.getGoal().getId() : null)
-                .goal(entity.getGoal() != null ? GoalMapper.toDTO(entity.getGoal()) : null)
+                .goal(goalDto)
                 .year(entity.getYear())
                 .rankPosition(entity.getRankPosition())
                 .score(entity.getScore())
                 .content(entity.getContent())
-                .isPublished(entity.getIsPublished())
+                .isPublished(Boolean.TRUE.equals(entity.getIsPublished()))
                 .build();
     }
 }
