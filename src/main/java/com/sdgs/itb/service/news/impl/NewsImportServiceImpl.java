@@ -31,13 +31,11 @@ public class NewsImportServiceImpl implements NewsImportService {
     private final NewsCategoryRepository newsCategoryRepository;
     private final UnitRepository unitRepository;
 
-    // Cache goals by their number (1 to 17)
     private final Map<Integer, Goal> goalByNumberCache = new HashMap<>();
     private final Map<String, Scholar> scholarCache = new HashMap<>();
     private final Map<String, NewsCategory> categoryCache = new HashMap<>();
     private final Map<Long, List<Unit>> unitCache = new HashMap<>();
 
-    // Strict front match: "GOAL 17", "goal 17", "Goal17", "Goal 1:", etc.
     private static final Pattern FRONT_GOAL_PATTERN = Pattern.compile("(?i)^\\s*goal\\s*(\\d{1,2})");
 
     private Integer extractGoalNumber(String text) {
@@ -109,31 +107,31 @@ public class NewsImportServiceImpl implements NewsImportService {
         String defaultContent = dto.getAbstractText();
 
         if ("outreach".equals(scholarName)) {
-            fullSourceUrl = "https://scholar.itb.ac.id/outreach_detail/" + dto.getUrl();
+            fullSourceUrl = "https://scholar.itb.ac.id/outreach/" + dto.getUrl();
             thumbnailUrl = "/news/outreach.jpg";
         } else if ("project".equals(scholarName) && "pengabdian".equalsIgnoreCase(dto.getType())) {
-            fullSourceUrl = "https://scholar.itb.ac.id/project_detail/" + dto.getUrl();
+            fullSourceUrl = "https://scholar.itb.ac.id/project/" + dto.getUrl();
             thumbnailUrl = "/news/community-service.jpg";
         } else {
             switch (scholarName) {
                 case "project" -> {
-                    fullSourceUrl = "https://scholar.itb.ac.id/project_detail/" + dto.getUrl();
+                    fullSourceUrl = "https://scholar.itb.ac.id/project/" + dto.getUrl();
                     thumbnailUrl = "/news/project.jpg";
                 }
                 case "paper" -> {
-                    fullSourceUrl = "https://scholar.itb.ac.id/paper_detail/" + dto.getUrl();
+                    fullSourceUrl = "https://scholar.itb.ac.id/paper/" + dto.getUrl();
                     thumbnailUrl = "/news/paper.jpeg";
                 }
                 case "patent" -> {
-                    fullSourceUrl = "https://scholar.itb.ac.id/paten_detail/" + dto.getUrl();
+                    fullSourceUrl = "https://scholar.itb.ac.id/patent/" + dto.getUrl();
                     thumbnailUrl = "/news/patent.jpg";
                 }
                 case "thesis" -> {
-                    fullSourceUrl = "https://scholar.itb.ac.id/thesis_detail/" + dto.getUrl();
+                    fullSourceUrl = "https://scholar.itb.ac.id/thesis/" + dto.getUrl();
                     thumbnailUrl = "/news/thesis.jpeg";
                 }
                 default -> {
-                    fullSourceUrl = "https://scholar.itb.ac.id/" + scholarName + "_detail/" + dto.getUrl();
+                    fullSourceUrl = "https://scholar.itb.ac.id/" + scholarName + "/" + dto.getUrl();
                     thumbnailUrl = "/news/default.jpg";
                 }
             }
@@ -150,6 +148,11 @@ public class NewsImportServiceImpl implements NewsImportService {
 
         if (existingOpt.isPresent()) {
             News existing = existingOpt.get();
+
+            // Update paper metadata if present
+            if (dto.getCite() != null) existing.setCite(dto.getCite());
+            if (dto.getSjr() != null) existing.setSjr(dto.getSjr());
+            if (dto.getSource() != null) existing.setSource(dto.getSource());
 
             if (dto.getSdg() != null && !dto.getSdg().isEmpty()) {
                 dto.getSdg().forEach(sdgStr -> {
@@ -196,6 +199,11 @@ public class NewsImportServiceImpl implements NewsImportService {
         newNews.setNewsCategory(category);
         newNews.setScholar(scholar);
 
+        // Assign paper metadata
+        newNews.setCite(dto.getCite());
+        newNews.setSjr(dto.getSjr());
+        newNews.setSource(dto.getSource());
+
         // Add goals using number extractor
         if (dto.getSdg() != null && !dto.getSdg().isEmpty()) {
             dto.getSdg().forEach(sdgStr -> {
@@ -232,31 +240,31 @@ public class NewsImportServiceImpl implements NewsImportService {
         String defaultContent = dto.getAbstractText();
 
         if ("outreach".equals(scholarName)) {
-            fullSourceUrl = "https://scholar.itb.ac.id/outreach_detail/" + dto.getUrl();
+            fullSourceUrl = "https://scholar.itb.ac.id/outreach/" + dto.getUrl();
             thumbnailUrl = "/news/outreach.jpg";
         } else if ("project".equals(scholarName) && "pengabdian".equalsIgnoreCase(dto.getType())) {
-            fullSourceUrl = "https://scholar.itb.ac.id/project_detail/" + dto.getUrl();
+            fullSourceUrl = "https://scholar.itb.ac.id/project/" + dto.getUrl();
             thumbnailUrl = "/news/community-service.jpg";
         } else {
             switch (scholarName) {
                 case "project" -> {
-                    fullSourceUrl = "https://scholar.itb.ac.id/project_detail/" + dto.getUrl();
+                    fullSourceUrl = "https://scholar.itb.ac.id/project/" + dto.getUrl();
                     thumbnailUrl = "/news/project.jpg";
                 }
                 case "paper" -> {
-                    fullSourceUrl = "https://scholar.itb.ac.id/paper_detail/" + dto.getUrl();
+                    fullSourceUrl = "https://scholar.itb.ac.id/paper/" + dto.getUrl();
                     thumbnailUrl = "/news/paper.jpeg";
                 }
                 case "patent" -> {
-                    fullSourceUrl = "https://scholar.itb.ac.id/paten_detail/" + dto.getUrl();
+                    fullSourceUrl = "https://scholar.itb.ac.id/patent/" + dto.getUrl();
                     thumbnailUrl = "/news/patent.jpg";
                 }
                 case "thesis" -> {
-                    fullSourceUrl = "https://scholar.itb.ac.id/thesis_detail/" + dto.getUrl();
+                    fullSourceUrl = "https://scholar.itb.ac.id/thesis/" + dto.getUrl();
                     thumbnailUrl = "/news/thesis.jpeg";
                 }
                 default -> {
-                    fullSourceUrl = "https://scholar.itb.ac.id/" + scholarName + "_detail/" + dto.getUrl();
+                    fullSourceUrl = "https://scholar.itb.ac.id/" + scholarName + "/" + dto.getUrl();
                     thumbnailUrl = "/news/default.jpg";
                 }
             }
@@ -272,6 +280,12 @@ public class NewsImportServiceImpl implements NewsImportService {
 
         if (existingOpt.isPresent()) {
             News existing = existingOpt.get();
+
+            // Update paper metadata
+            if (dto.getCite() != null) existing.setCite(dto.getCite());
+            if (dto.getSjr() != null) existing.setSjr(dto.getSjr());
+            if (dto.getSource() != null) existing.setSource(dto.getSource());
+
             if (dto.getSdg() != null && !dto.getSdg().isEmpty()) {
                 dto.getSdg().forEach(sdgStr -> {
                     Goal goal = resolveGoal(sdgStr);
@@ -312,6 +326,11 @@ public class NewsImportServiceImpl implements NewsImportService {
         newNews.setEventDate(dto.getDateTime() != null ? dto.getDateTime() : LocalDate.now());
         newNews.setNewsCategory(category);
         newNews.setScholar(scholar);
+
+        // Assign paper metadata
+        newNews.setCite(dto.getCite());
+        newNews.setSjr(dto.getSjr());
+        newNews.setSource(dto.getSource());
 
         if (dto.getSdg() != null && !dto.getSdg().isEmpty()) {
             dto.getSdg().forEach(sdgStr -> {

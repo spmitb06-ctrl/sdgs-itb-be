@@ -1,9 +1,12 @@
 package com.sdgs.itb.service.typesense.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sdgs.itb.infrastructure.news.repository.NewsRepository;
 import com.sdgs.itb.infrastructure.typesense.dto.TypesenseNewsExportDTO;
+import com.sdgs.itb.infrastructure.typesense.dto.TypesenseOrganizationExportDTO;
 import com.sdgs.itb.service.news.NewsImportService;
 import com.sdgs.itb.service.typesense.TypesenseService;
+import com.sdgs.itb.service.unit.OrganizationImportService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,6 +29,8 @@ public class TypesenseServiceImpl implements TypesenseService {
 
     private final RestTemplate restTemplate;
     private final NewsImportService newsImportService;
+    private final NewsRepository newsRepository;
+    private final OrganizationImportService organizationImportService;
 
     @Value("${typesense.apiKey}")
     private String apiKey;
@@ -78,14 +83,18 @@ public class TypesenseServiceImpl implements TypesenseService {
     private void importFromTypesenseInternal(String collection, int importLimit, Integer targetYear) {
         try {
             int page = 1;
-            int perPage = 200;
+            int perPage = 100;
             int importedCount = 0;
             boolean hasMore = true;
 
             int cutoffYear = 2024;
-            String filterBy = (targetYear != null && targetYear > 0)
-                    ? "year:=" + targetYear
-                    : "year:>=" + cutoffYear;
+            // Organizations do not have a root 'year' field; omit year filter for organization
+            String filterBy = null;
+            if (!collection.equals("organization")) {
+                filterBy = (targetYear != null && targetYear > 0)
+                        ? "year:=" + targetYear
+                        : "year:>=" + cutoffYear;
+            }
 
             DateTimeFormatter formatter = new DateTimeFormatterBuilder()
                     .parseCaseInsensitive()
@@ -97,24 +106,31 @@ public class TypesenseServiceImpl implements TypesenseService {
 
             while (importedCount < importLimit && hasMore) {
                 String includeFields;
-                if (collection.equals("project") || collection.equals("outreach")) {
+                if (collection.equals("organization")) {
+                    includeFields = "title,shortname,type,web,sdg,slug,id,cite,paper,patent,project,thesis,outreach";
+                } else if (collection.equals("project") || collection.equals("outreach")) {
                     includeFields = "abstract,sdg,title,slug,start,year,organization,type";
                 } else if (collection.equals("patent")) {
                     includeFields = "abstract,sdg,title,slug,date,year,organization,type";
+                } else if (collection.equals("paper")) {
+                    includeFields = "abstract,sdg,title,slug,year,organization,type,cite,sjr,source";
                 } else {
                     includeFields = "abstract,sdg,title,slug,year,organization,type";
                 }
 
-                URI uri = UriComponentsBuilder.fromUriString(baseUrl + "/" + collection + "/documents/search")
+                UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString(baseUrl + "/" + collection + "/documents/search")
                         .queryParam("q", "*")
                         .queryParam("query_by", "title")
                         .queryParam("per_page", perPage)
                         .queryParam("page", page)
-                        .queryParam("filter_by", filterBy)
-                        .queryParam("sort_by", "year:desc")
-                        .queryParam("include_fields", includeFields)
-                        .build()
-                        .toUri();
+                        .queryParam("include_fields", includeFields);
+
+                if (filterBy != null) {
+                    uriBuilder.queryParam("filter_by", filterBy);
+                    uriBuilder.queryParam("sort_by", "year:desc");
+                }
+
+                URI uri = uriBuilder.build().toUri();
 
                 HttpHeaders headers = new HttpHeaders();
                 headers.set("X-TYPESENSE-API-KEY", apiKey);
@@ -133,6 +149,30 @@ public class TypesenseServiceImpl implements TypesenseService {
                     Map<String, Object> doc = (Map<String, Object>) hit.get("document");
                     if (doc == null) continue;
 
+                    // --- HANDLE ORGANIZATION COLLECTION ---
+                    if (collection.equals("organization")) {
+                        TypesenseOrganizationExportDTO orgDto = new TypesenseOrganizationExportDTO();
+                        orgDto.setId(doc.get("id") != null ? String.valueOf(doc.get("id")) : null);
+                        orgDto.setTitle((String) doc.get("title"));
+                        orgDto.setShortname((String) doc.get("shortname"));
+                        orgDto.setType((String) doc.get("type"));
+                        orgDto.setWeb((String) doc.get("web"));
+                        orgDto.setSlug((String) doc.get("slug"));
+                        orgDto.setSdg((List<String>) doc.get("sdg"));
+
+                        orgDto.setCite(doc.get("cite") instanceof Number n ? n.intValue() : null);
+                        orgDto.setPaper(doc.get("paper") instanceof Number n ? n.intValue() : null);
+                        orgDto.setPatent(doc.get("patent") instanceof Number n ? n.intValue() : null);
+                        orgDto.setProject(doc.get("project") instanceof Number n ? n.intValue() : null);
+                        orgDto.setThesis(doc.get("thesis") instanceof Number n ? n.intValue() : null);
+                        orgDto.setOutreach(doc.get("outreach") instanceof Number n ? n.intValue() : null);
+
+                        organizationImportService.importOrUpdateOrganization(orgDto);
+                        importedCount++;
+                        continue;
+                    }
+
+                    // --- EXISTING NEWS IMPORT LOGIC ---
                     String abstractText = (String) doc.get("abstract");
                     String title = (String) doc.get("title");
                     String slug = (String) doc.get("slug");
@@ -145,7 +185,6 @@ public class TypesenseServiceImpl implements TypesenseService {
                         } catch (NumberFormatException ignored) {}
                     }
 
-                    // Client-side year validation
                     if (targetYear != null && targetYear > 0) {
                         if (year != targetYear) continue;
                     } else if (year < cutoffYear) {
@@ -153,15 +192,6 @@ public class TypesenseServiceImpl implements TypesenseService {
                     }
 
                     List<String> sdg = (List<String>) doc.get("sdg");
-                    if (sdg != null) {
-                        sdg.replaceAll(goal -> {
-                            if (goal != null && goal.trim().equalsIgnoreCase("GOAL 16: Peace and Justice Strong Institutions")) {
-                                return "GOAL 16: Peace, Justice and Strong Institutions";
-                            }
-                            return goal;
-                        });
-                    }
-
                     String type = (String) doc.get("type");
                     LocalDate eventDate = null;
 
@@ -200,6 +230,15 @@ public class TypesenseServiceImpl implements TypesenseService {
                         }
                     }
 
+                    Integer cite = null;
+                    if (doc.get("cite") != null) {
+                        try {
+                            cite = Integer.parseInt(String.valueOf(doc.get("cite")).trim());
+                        } catch (NumberFormatException ignored) {}
+                    }
+                    String sjr = doc.get("sjr") != null ? String.valueOf(doc.get("sjr")).trim() : null;
+                    String source = doc.get("source") != null ? String.valueOf(doc.get("source")).trim() : null;
+
                     boolean invalid =
                             (title == null || title.trim().isEmpty()) ||
                                     (slug == null || slug.trim().isEmpty()) ||
@@ -218,6 +257,9 @@ public class TypesenseServiceImpl implements TypesenseService {
                     dto.setYear(String.valueOf(year));
                     dto.setOrganizations(organizations);
                     dto.setType(type);
+                    dto.setCite(cite);
+                    dto.setSjr(sjr);
+                    dto.setSource(source);
 
                     newsImportService.importFromTypesense(dto);
                     importedCount++;
@@ -227,8 +269,7 @@ public class TypesenseServiceImpl implements TypesenseService {
                 page++;
             }
 
-            System.out.println("✅ Imported " + importedCount + " records from Typesense [" + collection + "]"
-                    + (targetYear != null ? " for year " + targetYear : ""));
+            System.out.println("V Imported " + importedCount + " records from Typesense [" + collection + "]");
         } catch (Exception e) {
             throw new RuntimeException("Error while import: " + e.getMessage(), e);
         }
@@ -363,7 +404,6 @@ public class TypesenseServiceImpl implements TypesenseService {
 
             int threshold = earlyExitThreshold > 0 ? earlyExitThreshold : 30;
 
-            // Determine filter condition based on targetYear
             String filterBy = (targetYear != null && targetYear > 0)
                     ? "year:=" + targetYear
                     : "year:>=2024";
@@ -382,6 +422,8 @@ public class TypesenseServiceImpl implements TypesenseService {
                     includeFields = "abstract,sdg,title,slug,start,year,organization,type";
                 } else if (collection.equals("patent")) {
                     includeFields = "abstract,sdg,title,slug,date,year,organization,type";
+                } else if (collection.equals("paper")) {
+                    includeFields = "abstract,sdg,title,slug,year,organization,type,cite,sjr,source";
                 } else {
                     includeFields = "abstract,sdg,title,slug,year,organization,type";
                 }
@@ -424,15 +466,6 @@ public class TypesenseServiceImpl implements TypesenseService {
                     }
 
                     List<String> sdg = (List<String>) doc.get("sdg");
-//                    if (sdg != null) {
-//                        sdg.replaceAll(goal -> {
-//                            if (goal != null && goal.trim().equalsIgnoreCase("GOAL 16: Peace and Justice Strong Institutions")) {
-//                                return "GOAL 16: Peace, Justice and Strong Institutions";
-//                            }
-//                            return goal;
-//                        });
-//                    }
-
                     String type = (String) doc.get("type");
                     LocalDate eventDate = null;
                     String dateStr = null;
@@ -470,6 +503,16 @@ public class TypesenseServiceImpl implements TypesenseService {
                         }
                     }
 
+                    // Extract cite, sjr, source
+                    Integer cite = null;
+                    if (doc.get("cite") != null) {
+                        try {
+                            cite = Integer.parseInt(String.valueOf(doc.get("cite")).trim());
+                        } catch (NumberFormatException ignored) {}
+                    }
+                    String sjr = doc.get("sjr") != null ? String.valueOf(doc.get("sjr")).trim() : null;
+                    String source = doc.get("source") != null ? String.valueOf(doc.get("source")).trim() : null;
+
                     boolean invalid = (title == null || title.trim().isEmpty()) ||
                             (slug == null || slug.trim().isEmpty()) ||
                             (sdg == null || sdg.isEmpty()) ||
@@ -487,16 +530,19 @@ public class TypesenseServiceImpl implements TypesenseService {
                     dto.setYear(String.valueOf(year));
                     dto.setOrganizations(organizations);
                     dto.setType(type);
+                    dto.setCite(cite);
+                    dto.setSjr(sjr);
+                    dto.setSource(source);
 
                     boolean isNew = newsImportService.importOrUpdateFromTypesense(dto);
 
                     if (isNew) {
                         newRecordsCount++;
-                        consecutiveExistingCount = 0; // Reset counter on any new record
+                        consecutiveExistingCount = 0;
                     } else {
                         consecutiveExistingCount++;
                         if (consecutiveExistingCount >= threshold) {
-                            System.out.println("🛑 Reached " + threshold + " consecutive existing records for ["
+                            System.out.println("X Reached " + threshold + " consecutive existing records for ["
                                     + collection + "]. Stopping early.");
                             hasMore = false;
                             break;
@@ -510,10 +556,84 @@ public class TypesenseServiceImpl implements TypesenseService {
                 page++;
             }
 
-            System.out.println("✅ Incremental sync finished for [" + collection + "]. New records: " + newRecordsCount);
+            System.out.println("V Incremental sync finished for [" + collection + "]. New records: " + newRecordsCount);
             return newRecordsCount;
         } catch (Exception e) {
             throw new RuntimeException("Error during incremental sync: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public int backfillPaperMetadata(Integer targetYear) {
+        try {
+            int page = 1;
+            int perPage = 250;
+            int totalUpdated = 0;
+            boolean hasMore = true;
+
+            String filterBy = (targetYear != null && targetYear > 0)
+                    ? "year:=" + targetYear
+                    : "year:>=2024";
+
+            System.out.println("Starting paper metadata backfill with filter: " + filterBy);
+
+            while (hasMore) {
+                // Only request the minimal fields required for backfill
+                URI uri = UriComponentsBuilder.fromUriString(baseUrl + "/paper/documents/search")
+                        .queryParam("q", "*")
+                        .queryParam("query_by", "title")
+                        .queryParam("per_page", perPage)
+                        .queryParam("page", page)
+                        .queryParam("filter_by", filterBy)
+                        .queryParam("include_fields", "slug,cite,sjr,source")
+                        .build()
+                        .toUri();
+
+                HttpHeaders headers = new HttpHeaders();
+                headers.set("X-TYPESENSE-API-KEY", apiKey);
+                HttpEntity<Void> request = new HttpEntity<>(headers);
+
+                ResponseEntity<Map> response = restTemplate.exchange(uri, HttpMethod.GET, request, Map.class);
+                if (response.getBody() == null || response.getBody().get("hits") == null) break;
+
+                List<Map<String, Object>> hits = (List<Map<String, Object>>) response.getBody().get("hits");
+                if (hits.isEmpty()) break;
+
+                for (Map<String, Object> hit : hits) {
+                    Map<String, Object> doc = (Map<String, Object>) hit.get("document");
+                    if (doc == null) continue;
+
+                    String slug = (String) doc.get("slug");
+                    if (slug == null || slug.trim().isEmpty()) continue;
+
+                    String fullSourceUrl = "https://scholar.itb.ac.id/paper/" + slug.trim();
+
+                    Integer cite = null;
+                    if (doc.get("cite") != null) {
+                        try {
+                            cite = Integer.parseInt(String.valueOf(doc.get("cite")).trim());
+                        } catch (NumberFormatException ignored) {}
+                    }
+
+                    String sjr = doc.get("sjr") != null ? String.valueOf(doc.get("sjr")).trim() : null;
+                    String source = doc.get("source") != null ? String.valueOf(doc.get("source")).trim() : null;
+
+                    // Execute lightweight update
+                    int rowsUpdated = newsRepository.updatePaperMetadata(fullSourceUrl, cite, sjr, source);
+                    totalUpdated += rowsUpdated;
+                }
+
+                if (hits.size() < perPage) {
+                    hasMore = false;
+                } else {
+                    page++;
+                }
+            }
+
+            System.out.println("Finished backfilling. Total paper records updated: " + totalUpdated);
+            return totalUpdated;
+        } catch (Exception e) {
+            throw new RuntimeException("Error during paper backfill: " + e.getMessage(), e);
         }
     }
 }

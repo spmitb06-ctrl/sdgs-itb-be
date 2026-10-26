@@ -11,14 +11,15 @@ import java.util.Optional;
 
 public interface UnitRepository extends JpaRepository<Unit, Long>, JpaSpecificationExecutor<Unit> {
 
-    @Query("SELECT u FROM Unit u WHERE LOWER(u.name) = LOWER(:name)")
-    Optional<Unit> findByName(String name);
+    @Query("SELECT u FROM Unit u WHERE LOWER(u.name) = LOWER(:name) AND u.deletedAt IS NULL")
+    Optional<Unit> findByName(@Param("name") String name);
 
-    @Query("SELECT u FROM Unit u WHERE LOWER(u.abbreviation) = LOWER(:abbreviation)")
-    Optional<Unit> findByAbbreviation(String abbreviation);
+    @Query("SELECT u FROM Unit u WHERE LOWER(u.abbreviation) = LOWER(:abbreviation) AND u.deletedAt IS NULL")
+    Optional<Unit> findByAbbreviation(@Param("abbreviation") String abbreviation);
 
     @Query("SELECT u FROM Unit u WHERE u.organizationId = :organizationId AND u.deletedAt IS NULL")
     List<Unit> findByOrganizationId(@Param("organizationId") Long organizationId);
+
+    @Query("SELECT u FROM Unit u WHERE u.organizationId = :organizationId AND u.deletedAt IS NULL")
+    Optional<Unit> findFirstByOrganizationId(@Param("organizationId") Long organizationId);
 }
-
-

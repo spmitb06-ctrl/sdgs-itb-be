@@ -107,6 +107,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/data/**").permitAll()
                         .requestMatchers("/api/v1/data/categories").permitAll()
                         .requestMatchers("/api/v1/data/categories/**").permitAll()
+                        .requestMatchers("/api/v1/rankings").permitAll()
+                        .requestMatchers("/api/v1/rankings/**").permitAll()
+
+                        .requestMatchers("/api/v1/admin/rankings/**").authenticated()
 
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

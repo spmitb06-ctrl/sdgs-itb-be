@@ -3,8 +3,10 @@ package com.sdgs.itb.infrastructure.news.repository;
 import com.sdgs.itb.entity.news.News;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -28,4 +30,21 @@ public interface NewsRepository extends JpaRepository<News, Long>, JpaSpecificat
         WHERE n.scholarYear IS NULL
     """)
     List<News> findAllCommunityServiceNews();
+
+    // Direct Patch Query for Paper Metadata
+    @Modifying
+    @Transactional
+    @Query("""
+        UPDATE News n
+        SET n.cite = COALESCE(:cite, n.cite),
+            n.sjr = COALESCE(:sjr, n.sjr),
+            n.source = COALESCE(:source, n.source)
+        WHERE LOWER(n.sourceUrl) = LOWER(:sourceUrl)
+    """)
+    int updatePaperMetadata(
+            @Param("sourceUrl") String sourceUrl,
+            @Param("cite") Integer cite,
+            @Param("sjr") String sjr,
+            @Param("source") String source
+    );
 }

@@ -1,7 +1,9 @@
 package com.sdgs.itb.infrastructure.typesense.controller;
 
+import com.sdgs.itb.common.responses.ApiResponse;
 import com.sdgs.itb.service.typesense.TypesenseService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -12,7 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/v1/typesense/sync")
+@RequestMapping("/api/v1/typesense")
 @RequiredArgsConstructor
 public class TypesenseSyncController {
 
@@ -29,7 +31,7 @@ public class TypesenseSyncController {
      * POST /api/v1/typesense/sync?table=paper&year=2026
      * POST /api/v1/typesense/sync?threshold=50
      */
-    @PostMapping
+    @PostMapping("/sync")
     public ResponseEntity<Map<String, Object>> syncIncremental(
             @RequestParam(required = false) String table,
             @RequestParam(required = false) Integer year,
@@ -51,5 +53,28 @@ public class TypesenseSyncController {
         }
 
         return ResponseEntity.ok(results);
+    }
+
+    /**
+     * Dedicated fast backfill endpoint for paper metadata (cite, sjr, source).
+     *
+     * Examples:
+     * POST /api/v1/typesense/backfill/paper
+     * POST /api/v1/typesense/backfill/paper?year=2026
+     */
+    @PostMapping("/backfill/paper")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> backfillPaper(
+            @RequestParam(required = false) Integer year
+    ) {
+        try {
+            int updatedCount = typesenseService.backfillPaperMetadata(year);
+            return ApiResponse.success(
+                    HttpStatus.OK.value(),
+                    "Backfill completed successfully",
+                    Map.of("targetYear", year != null ? year : "all >= 2024", "recordsUpdated", updatedCount)
+            );
+        } catch (Exception e) {
+            return ApiResponse.failed(HttpStatus.BAD_REQUEST.value(), e.getMessage());
+        }
     }
 }
