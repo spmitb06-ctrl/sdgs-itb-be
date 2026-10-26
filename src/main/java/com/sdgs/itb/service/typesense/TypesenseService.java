@@ -12,4 +12,5 @@ public interface TypesenseService {
     void streamExport(String collection, HttpServletResponse response);
     Set<String> getTypesByCollection(String collection);
     int importIncremental(String collection, Integer year, int earlyExitThreshold);
+    int backfillPaperMetadata(Integer year);
 }

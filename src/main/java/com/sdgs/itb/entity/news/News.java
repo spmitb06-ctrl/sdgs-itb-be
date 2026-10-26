@@ -8,7 +8,6 @@ import com.sdgs.itb.entity.unit.Unit;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
-import org.hibernate.annotations.ColumnDefault;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -48,6 +47,18 @@ public class News {
 
     @Column(name = "scholar_year")
     private String scholarYear;
+
+    @Column(name = "temp_category")
+    private String tempCategory;
+
+    @Column(name = "cite")
+    private Integer cite;
+
+    @Column(name = "sjr")
+    private String sjr;
+
+    @Column(name = "source")
+    private String source;
 
     @Column(name = "event_date")
     @JsonFormat(pattern = "yyyy-MM-dd")
@@ -89,14 +100,17 @@ public class News {
     @JsonBackReference
     @OneToMany(mappedBy = "news", fetch = FetchType.LAZY,
             cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     private Set<NewsUnit> newsUnits = new HashSet<>();
 
     @OneToMany(mappedBy = "news", cascade = CascadeType.ALL,
             orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
     private List<NewsImage> images = new ArrayList<>();
 
     @OneToMany(mappedBy = "news", fetch = FetchType.LAZY,
             cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     private Set<NewsGoal> newsGoals = new HashSet<>();
 
     @ManyToOne(fetch = FetchType.LAZY)

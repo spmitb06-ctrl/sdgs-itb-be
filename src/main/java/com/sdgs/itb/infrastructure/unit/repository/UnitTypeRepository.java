@@ -1,6 +1,7 @@
 package com.sdgs.itb.infrastructure.unit.repository;
 
 import com.sdgs.itb.entity.unit.UnitType;
+import com.sdgs.itb.infrastructure.typesense.dto.TypesenseOrganizationExportDTO;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
