@@ -31,4 +31,19 @@ public interface RankingQuestionRepository extends JpaRepository<RankingQuestion
         ORDER BY q.code ASC
     """)
     List<RankingQuestion> findAllRootQuestionsBySystem(@Param("systemId") Long systemId);
+
+    // Cek duplikasi kode saat create
+    boolean existsByRankingSystemIdAndGoalIdAndCodeAndDeletedAtIsNull(
+            Long rankingSystemId,
+            Long goalId,
+            String code
+    );
+
+    // Cek duplikasi kode saat update (mengecualikan ID diri sendiri)
+    boolean existsByRankingSystemIdAndGoalIdAndCodeAndIdNotAndDeletedAtIsNull(
+            Long rankingSystemId,
+            Long goalId,
+            String code,
+            Long id
+    );
 }

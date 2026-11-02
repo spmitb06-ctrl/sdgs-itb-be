@@ -64,13 +64,11 @@ public class RankingServiceImpl implements RankingService {
                 .and(RankingOverviewSpecification.hasYear(year))
                 .and(RankingOverviewSpecification.isPublishedOnly(publishedOnly));
 
-        // Menggunakan sorting id/year di level query agar aman dari null goal
         List<RankingOverview> overviews = overviewRepository.findAll(
                 spec,
                 Sort.by(Sort.Direction.DESC, "year").and(Sort.by(Sort.Direction.ASC, "id"))
         );
 
-        // Sorting null-safe berdasarkan goalNumber di Java memory stream
         return overviews.stream()
                 .sorted(Comparator.comparing(
                         o -> (o.getGoal() != null ? o.getGoal().getGoalNumber() : 0),
@@ -156,7 +154,57 @@ public class RankingServiceImpl implements RankingService {
             attachSubmissionsRecursive(dtos, year);
         }
 
+        // Terapkan Natural Sort untuk Level 1, Level 2, Level 3, dan Level 4
+        sortQuestionsHierarchyRecursively(dtos);
+
         return dtos;
+    }
+
+    private void sortQuestionsHierarchyRecursively(List<RankingQuestionDTO> dtos) {
+        if (dtos == null || dtos.isEmpty()) return;
+
+        dtos.sort((a, b) -> naturalCompareCodes(a.getCode(), b.getCode()));
+
+        for (RankingQuestionDTO dto : dtos) {
+            if (dto.getChildren() != null && !dto.getChildren().isEmpty()) {
+                sortQuestionsHierarchyRecursively(dto.getChildren());
+            }
+        }
+    }
+
+    private int naturalCompareCodes(String codeA, String codeB) {
+        if (codeA == null && codeB == null) return 0;
+        if (codeA == null) return -1;
+        if (codeB == null) return 1;
+
+        String[] partsA = codeA.trim().split("\\.");
+        String[] partsB = codeB.trim().split("\\.");
+
+        int length = Math.max(partsA.length, partsB.length);
+        for (int i = 0; i < length; i++) {
+            if (i >= partsA.length) return -1;
+            if (i >= partsB.length) return 1;
+
+            String partA = partsA[i];
+            String partB = partsB[i];
+
+            boolean isNumA = partA.matches("\\d+");
+            boolean isNumB = partB.matches("\\d+");
+
+            if (isNumA && isNumB) {
+                int numA = Integer.parseInt(partA);
+                int numB = Integer.parseInt(partB);
+                if (numA != numB) {
+                    return Integer.compare(numA, numB);
+                }
+            } else {
+                int strCompare = partA.compareToIgnoreCase(partB);
+                if (strCompare != 0) {
+                    return strCompare;
+                }
+            }
+        }
+        return 0;
     }
 
     private void attachSubmissionsRecursive(List<RankingQuestionDTO> questionDTOs, Integer year) {
@@ -228,11 +276,28 @@ public class RankingServiceImpl implements RankingService {
             }
         }
 
+        if (goal == null) {
+            throw new IllegalArgumentException("SDG Goal must be specified");
+        }
+
+        String trimmedCode = dto.getCode() != null ? dto.getCode().trim() : "";
+        if (trimmedCode.isEmpty()) {
+            throw new IllegalArgumentException("Metric code cannot be empty");
+        }
+
+        // Pengecekan duplikasi kode pada Sistem dan Goal yang sama
+        boolean exists = questionRepository.existsByRankingSystemIdAndGoalIdAndCodeAndDeletedAtIsNull(
+                system.getId(), goal.getId(), trimmedCode
+        );
+        if (exists) {
+            throw new IllegalArgumentException("Metric with code '" + trimmedCode + "' already exists for this SDG Goal!");
+        }
+
         RankingQuestion question = RankingQuestion.builder()
                 .rankingSystem(system)
                 .goal(goal)
                 .parent(parent)
-                .code(dto.getCode())
+                .code(trimmedCode)
                 .title(dto.getTitle())
                 .content(dto.getContent())
                 .level(calculatedLevel)
@@ -248,15 +313,31 @@ public class RankingServiceImpl implements RankingService {
         RankingQuestion question = questionRepository.findById(id)
                 .orElseThrow(() -> new DataNotFoundException("Question not found"));
 
-        question.setCode(dto.getCode());
+        String trimmedCode = dto.getCode() != null ? dto.getCode().trim() : "";
+        if (trimmedCode.isEmpty()) {
+            throw new IllegalArgumentException("Metric code cannot be empty");
+        }
+
+        Goal targetGoal = question.getGoal();
+        if (dto.getGoalId() != null) {
+            targetGoal = goalRepository.findById(dto.getGoalId())
+                    .orElseThrow(() -> new DataNotFoundException("Goal not found"));
+            question.setGoal(targetGoal);
+        }
+
+        // Pengecekan duplikasi kode pada Sistem dan Goal yang sama (selain pertanyaan ini)
+        if (question.getRankingSystem() != null && targetGoal != null) {
+            boolean exists = questionRepository.existsByRankingSystemIdAndGoalIdAndCodeAndIdNotAndDeletedAtIsNull(
+                    question.getRankingSystem().getId(), targetGoal.getId(), trimmedCode, id
+            );
+            if (exists) {
+                throw new IllegalArgumentException("Metric with code '" + trimmedCode + "' already exists for this SDG Goal!");
+            }
+        }
+
+        question.setCode(trimmedCode);
         question.setTitle(dto.getTitle());
         question.setContent(dto.getContent());
-
-        if (dto.getGoalId() != null) {
-            Goal goal = goalRepository.findById(dto.getGoalId())
-                    .orElseThrow(() -> new DataNotFoundException("Goal not found"));
-            question.setGoal(goal);
-        }
 
         RankingQuestion saved = questionRepository.save(question);
         return RankingMapper.toDTO(saved);
