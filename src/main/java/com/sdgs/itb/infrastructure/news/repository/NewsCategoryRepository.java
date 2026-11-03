@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public interface NewsCategoryRepository extends JpaRepository<NewsCategory, Long> {
@@ -23,13 +24,15 @@ public interface NewsCategoryRepository extends JpaRepository<NewsCategory, Long
         WHERE n.deletedAt IS NULL
           AND (:year IS NULL OR EXTRACT(YEAR FROM n.eventDate) = :year)
           AND (:goalId IS NULL OR g.id = :goalId)
+          AND (cast(:startDate as date) IS NULL OR n.eventDate >= :startDate)
+          AND (cast(:endDate as date) IS NULL OR n.eventDate <= :endDate)
         GROUP BY c.id, c.category
         ORDER BY c.category
     """)
     List<NewsCategoryStatsDTO> findNewsCountByCategory(
             @Param("year") Integer year,
-            @Param("goalId") Long goalId
+            @Param("goalId") Long goalId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
     );
 }
-
-
