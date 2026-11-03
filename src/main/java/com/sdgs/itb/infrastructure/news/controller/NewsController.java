@@ -203,10 +203,12 @@ public class NewsController {
     @GetMapping("/stats/categories")
     public ResponseEntity<ApiResponse<List<NewsCategoryStatsDTO>>> getNewsStatsByCategory(
             @RequestParam(required = false) Integer year,
-            @RequestParam(required = false) Long goalId
+            @RequestParam(required = false) Long goalId,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate startDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate endDate
     ) {
         try {
-            List<NewsCategoryStatsDTO> stats = newsStatsService.getNewsStatsByCategory(year, goalId);
+            List<NewsCategoryStatsDTO> stats = newsStatsService.getNewsStatsByCategory(year, goalId, startDate, endDate);
             return ApiResponse.success(
                     HttpStatus.OK.value(),
                     "News statistics by category fetched successfully",

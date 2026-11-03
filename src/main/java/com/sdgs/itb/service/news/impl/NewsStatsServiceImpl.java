@@ -8,6 +8,7 @@ import com.sdgs.itb.service.news.NewsStatsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -25,6 +26,11 @@ public class NewsStatsServiceImpl implements NewsStatsService {
 
     @Override
     public List<NewsCategoryStatsDTO> getNewsStatsByCategory(Integer year, Long goalId) {
-        return newsCategoryRepository.findNewsCountByCategory(year, goalId);
+        return getNewsStatsByCategory(year, goalId, null, null);
+    }
+
+    @Override
+    public List<NewsCategoryStatsDTO> getNewsStatsByCategory(Integer year, Long goalId, LocalDate startDate, LocalDate endDate) {
+        return newsCategoryRepository.findNewsCountByCategory(year, goalId, startDate, endDate);
     }
 }
