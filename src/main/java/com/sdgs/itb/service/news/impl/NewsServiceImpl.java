@@ -24,6 +24,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.Iterator;
 import java.util.List;
@@ -293,6 +294,8 @@ public class NewsServiceImpl implements NewsService {
             List<Long> scholarIds,
             List<Long> unitIds,
             String year,
+            LocalDate startDate,
+            LocalDate endDate,
             String sortBy,
             String sortDir,
             int page,

@@ -1,6 +1,5 @@
 package com.sdgs.itb.entity.ranking;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.sdgs.itb.entity.goal.Goal;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
@@ -31,28 +30,26 @@ public class RankingQuestion {
     private RankingSystem rankingSystem;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "goal_id")
-    private Goal goal; // Terisi terutama untuk Level 1 yang mewakili SDG
+    @JoinColumn(name = "goal_id", nullable = false)
+    private Goal goal;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
     private RankingQuestion parent;
 
-    @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @Builder.Default
-    private List<RankingQuestion> children = new ArrayList<>();
-
-    @Column(nullable = false, length = 50)
-    private String code; // Contoh: "17", "17.2", "17.2.1"
-
     @Column(nullable = false)
+    private String code;
+
+    // Diubah menjadi TEXT agar judul/indikator bisa panjang tanpa batas 255 karakter
+    @Column(columnDefinition = "TEXT", nullable = false)
     private String title;
 
     @Column(columnDefinition = "TEXT")
-    private String content; // Konten narasi/deskripsi per level (maksimal Level 3)
+    private String content;
 
+    @NotNull
     @Column(nullable = false)
-    private Integer level; // 1, 2, atau 3
+    private Integer level;
 
     @Column(name = "deleted_at")
     private OffsetDateTime deletedAt;
@@ -66,6 +63,10 @@ public class RankingQuestion {
     @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
+
+    @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<RankingQuestion> children = new ArrayList<>();
 
     @PrePersist
     protected void onCreate() {

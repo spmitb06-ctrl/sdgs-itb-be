@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import org.hibernate.annotations.ColumnDefault;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.Objects;
 
@@ -41,12 +42,18 @@ public class RankingOverview {
     private Integer year;
 
     @Column(name = "rank_position")
-    private String rankPosition; // Misal: "Rank 30", "Top 100"
+    private String rankPosition;
 
     private Double score;
 
     @Column(columnDefinition = "TEXT")
-    private String content; // Konten ringkasan pencapaian yang rapi untuk ditampilkan pada halaman
+    private String content;
+
+    @Column(name = "data_start_date")
+    private LocalDate dataStartDate;
+
+    @Column(name = "data_end_date")
+    private LocalDate dataEndDate;
 
     @NotNull
     @ColumnDefault("false")

@@ -108,6 +108,8 @@ public class RankingServiceImpl implements RankingService {
         overview.setRankPosition(dto.getRankPosition());
         overview.setScore(dto.getScore());
         overview.setContent(dto.getContent());
+        overview.setDataStartDate(dto.getDataStartDate());
+        overview.setDataEndDate(dto.getDataEndDate());
         if (dto.getIsPublished() != null) {
             overview.setIsPublished(dto.getIsPublished());
         }

@@ -99,5 +99,19 @@ public class NewsSpecification {
         };
     }
 
+    public static Specification<News> hasEventDateBetween(java.time.LocalDate startDate, java.time.LocalDate endDate) {
+        return (root, query, cb) -> {
+            if (startDate == null && endDate == null) {
+                return cb.conjunction();
+            }
+            if (startDate != null && endDate != null) {
+                return cb.between(root.get("eventDate"), startDate, endDate);
+            }
+            if (startDate != null) {
+                return cb.greaterThanOrEqualTo(root.get("eventDate"), startDate);
+            }
+            return cb.lessThanOrEqualTo(root.get("eventDate"), endDate);
+        };
+    }
 
 }
