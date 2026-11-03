@@ -127,11 +127,13 @@ public class NewsController {
     @GetMapping
     public ResponseEntity<ApiResponse<Page<NewsDTO>>> getAll(
             @RequestParam(required = false) String title,
-            @RequestParam(required = false) String goalIds,     // comma-separated
-            @RequestParam(required = false) String categoryIds, // comma-separated
-            @RequestParam(required = false) String scholarIds, // comma-separated
-            @RequestParam(required = false) String unitIds,  // comma-separated
+            @RequestParam(required = false) String goalIds,
+            @RequestParam(required = false) String categoryIds,
+            @RequestParam(required = false) String scholarIds,
+            @RequestParam(required = false) String unitIds,
             @RequestParam(required = false) String year,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate startDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate endDate,
             @RequestParam(defaultValue = "eventDate") String sortBy,
             @RequestParam(defaultValue = "DESC") String sortDir,
             @RequestParam(defaultValue = "0") int page,
@@ -163,6 +165,8 @@ public class NewsController {
                         scholarIdList,
                         unitIdList,
                         year,
+                        startDate,
+                        endDate,
                         sortBy,
                         sortDir,
                         page,

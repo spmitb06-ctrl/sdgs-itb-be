@@ -3,6 +3,7 @@ package com.sdgs.itb.service.news;
 import com.sdgs.itb.infrastructure.news.dto.NewsDTO;
 import org.springframework.data.domain.Page;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public interface NewsService {
@@ -18,6 +19,8 @@ public interface NewsService {
             List<Long> scholarIds,
             List<Long> unitIds,
             String year,
+            LocalDate startDate,
+            LocalDate endDate,
             String sortBy,
             String sortDir,
             int page,

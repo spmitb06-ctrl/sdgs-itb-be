@@ -92,6 +92,8 @@ public class RankingMapper {
                 .rankPosition(entity.getRankPosition())
                 .score(entity.getScore())
                 .content(entity.getContent())
+                .dataStartDate(entity.getDataStartDate())
+                .dataEndDate(entity.getDataEndDate())
                 .isPublished(Boolean.TRUE.equals(entity.getIsPublished()))
                 .build();
     }
