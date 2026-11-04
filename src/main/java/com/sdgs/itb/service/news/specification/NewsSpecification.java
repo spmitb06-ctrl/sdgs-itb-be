@@ -3,6 +3,7 @@ package com.sdgs.itb.service.news.specification;
 import com.sdgs.itb.entity.news.News;
 import org.springframework.data.jpa.domain.Specification;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
 
@@ -86,7 +87,6 @@ public class NewsSpecification {
             }
             try {
                 int yearInt = Integer.parseInt(year);
-                // Works for PostgreSQL
                 return cb.equal(
                         cb.function("date_part", Integer.class,
                                 cb.literal("year"),
@@ -99,19 +99,17 @@ public class NewsSpecification {
         };
     }
 
-    public static Specification<News> hasEventDateBetween(java.time.LocalDate startDate, java.time.LocalDate endDate) {
+    // Predikat Filter Rentang Tanggal
+    public static Specification<News> eventDateBetween(LocalDate startDate, LocalDate endDate) {
         return (root, query, cb) -> {
-            if (startDate == null && endDate == null) {
-                return cb.conjunction();
-            }
             if (startDate != null && endDate != null) {
                 return cb.between(root.get("eventDate"), startDate, endDate);
-            }
-            if (startDate != null) {
+            } else if (startDate != null) {
                 return cb.greaterThanOrEqualTo(root.get("eventDate"), startDate);
+            } else if (endDate != null) {
+                return cb.lessThanOrEqualTo(root.get("eventDate"), endDate);
             }
-            return cb.lessThanOrEqualTo(root.get("eventDate"), endDate);
+            return cb.conjunction();
         };
     }
-
 }
