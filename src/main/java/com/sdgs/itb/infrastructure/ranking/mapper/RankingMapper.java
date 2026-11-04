@@ -55,6 +55,7 @@ public class RankingMapper {
                 .goalId(entity.getGoal() != null ? entity.getGoal().getId() : null)
                 .goalNumber(entity.getGoal() != null ? entity.getGoal().getGoalNumber() : null)
                 .parentId(entity.getParent() != null ? entity.getParent().getId() : null)
+                .year(entity.getYear()) // Map year ke DTO
                 .code(entity.getCode())
                 .title(entity.getTitle())
                 .content(entity.getContent())

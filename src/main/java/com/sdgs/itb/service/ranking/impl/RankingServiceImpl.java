@@ -143,20 +143,18 @@ public class RankingServiceImpl implements RankingService {
     public List<RankingQuestionDTO> getQuestionHierarchy(Long systemId, Long goalId, Integer year) {
         List<RankingQuestion> roots;
         if (goalId != null) {
-            roots = questionRepository.findRootQuestionsBySystemAndGoal(systemId, goalId);
+            roots = questionRepository.findRootQuestionsBySystemAndGoalAndYear(systemId, goalId, year);
         } else {
-            roots = questionRepository.findAllRootQuestionsBySystem(systemId);
+            roots = questionRepository.findAllRootQuestionsBySystemAndYear(systemId, year);
         }
 
         List<RankingQuestionDTO> dtos = roots.stream()
                 .map(RankingMapper::toDTO)
                 .collect(Collectors.toList());
 
-        if (year != null) {
-            attachSubmissionsRecursive(dtos, year);
-        }
+        // Attach submissions yang sesuai dengan tahun yang diminta
+        attachSubmissionsRecursive(dtos, year);
 
-        // Terapkan Natural Sort untuk Level 1, Level 2, Level 3, dan Level 4
         sortQuestionsHierarchyRecursively(dtos);
 
         return dtos;
@@ -212,6 +210,10 @@ public class RankingServiceImpl implements RankingService {
     private void attachSubmissionsRecursive(List<RankingQuestionDTO> questionDTOs, Integer year) {
         if (questionDTOs == null || questionDTOs.isEmpty()) return;
 
+        clearAllSubmissions(questionDTOs);
+
+        if (year == null) return;
+
         List<Long> questionIds = new ArrayList<>();
         collectAllQuestionIds(questionDTOs, questionIds);
 
@@ -219,7 +221,7 @@ public class RankingServiceImpl implements RankingService {
 
         List<RankingSubmission> submissions = submissionRepository.findByQuestionIdsAndYear(questionIds, year);
         Map<Long, RankingSubmission> submissionMap = submissions.stream()
-                .filter(s -> s.getQuestion() != null)
+                .filter(s -> s.getQuestion() != null && Objects.equals(s.getSubmissionYear(), year))
                 .collect(Collectors.toMap(
                         s -> s.getQuestion().getId(),
                         s -> s,
@@ -227,6 +229,15 @@ public class RankingServiceImpl implements RankingService {
                 ));
 
         populateSubmissions(questionDTOs, submissionMap);
+    }
+
+    private void clearAllSubmissions(List<RankingQuestionDTO> dtos) {
+        for (RankingQuestionDTO dto : dtos) {
+            dto.setSubmission(null);
+            if (dto.getChildren() != null && !dto.getChildren().isEmpty()) {
+                clearAllSubmissions(dto.getChildren());
+            }
+        }
     }
 
     private void collectAllQuestionIds(List<RankingQuestionDTO> dtos, List<Long> ids) {
@@ -242,10 +253,14 @@ public class RankingServiceImpl implements RankingService {
 
     private void populateSubmissions(List<RankingQuestionDTO> dtos, Map<Long, RankingSubmission> map) {
         for (RankingQuestionDTO dto : dtos) {
-            if (dto.getId() != null && map.containsKey(dto.getId())) {
-                dto.setSubmission(RankingMapper.toDTO(map.get(dto.getId())));
+            if (dto.getId() != null) {
+                if (map.containsKey(dto.getId())) {
+                    dto.setSubmission(RankingMapper.toDTO(map.get(dto.getId())));
+                } else {
+                    dto.setSubmission(null);
+                }
             }
-            if (dto.getChildren() != null) {
+            if (dto.getChildren() != null && !dto.getChildren().isEmpty()) {
                 populateSubmissions(dto.getChildren(), map);
             }
         }
@@ -265,6 +280,7 @@ public class RankingServiceImpl implements RankingService {
 
         RankingQuestion parent = null;
         int calculatedLevel = 1;
+        Integer targetYear = dto.getYear();
 
         if (dto.getParentId() != null) {
             parent = questionRepository.findById(dto.getParentId())
@@ -276,10 +292,17 @@ public class RankingServiceImpl implements RankingService {
             if (goal == null && parent.getGoal() != null) {
                 goal = parent.getGoal();
             }
+            if (targetYear == null && parent.getYear() != null) {
+                targetYear = parent.getYear();
+            }
         }
 
         if (goal == null) {
             throw new IllegalArgumentException("SDG Goal must be specified");
+        }
+
+        if (targetYear == null) {
+            throw new IllegalArgumentException("Year must be specified for this metric");
         }
 
         String trimmedCode = dto.getCode() != null ? dto.getCode().trim() : "";
@@ -287,18 +310,18 @@ public class RankingServiceImpl implements RankingService {
             throw new IllegalArgumentException("Metric code cannot be empty");
         }
 
-        // Pengecekan duplikasi kode pada Sistem dan Goal yang sama
-        boolean exists = questionRepository.existsByRankingSystemIdAndGoalIdAndCodeAndDeletedAtIsNull(
-                system.getId(), goal.getId(), trimmedCode
+        boolean exists = questionRepository.existsByRankingSystemIdAndGoalIdAndYearAndCodeAndDeletedAtIsNull(
+                system.getId(), goal.getId(), targetYear, trimmedCode
         );
         if (exists) {
-            throw new IllegalArgumentException("Metric with code '" + trimmedCode + "' already exists for this SDG Goal!");
+            throw new IllegalArgumentException("Metric with code '" + trimmedCode + "' already exists for year " + targetYear + "!");
         }
 
         RankingQuestion question = RankingQuestion.builder()
                 .rankingSystem(system)
                 .goal(goal)
                 .parent(parent)
+                .year(targetYear)
                 .code(trimmedCode)
                 .title(dto.getTitle())
                 .content(dto.getContent())
@@ -327,13 +350,15 @@ public class RankingServiceImpl implements RankingService {
             question.setGoal(targetGoal);
         }
 
-        // Pengecekan duplikasi kode pada Sistem dan Goal yang sama (selain pertanyaan ini)
+        Integer targetYear = dto.getYear() != null ? dto.getYear() : question.getYear();
+        question.setYear(targetYear);
+
         if (question.getRankingSystem() != null && targetGoal != null) {
-            boolean exists = questionRepository.existsByRankingSystemIdAndGoalIdAndCodeAndIdNotAndDeletedAtIsNull(
-                    question.getRankingSystem().getId(), targetGoal.getId(), trimmedCode, id
+            boolean exists = questionRepository.existsByRankingSystemIdAndGoalIdAndYearAndCodeAndIdNotAndDeletedAtIsNull(
+                    question.getRankingSystem().getId(), targetGoal.getId(), targetYear, trimmedCode, id
             );
             if (exists) {
-                throw new IllegalArgumentException("Metric with code '" + trimmedCode + "' already exists for this SDG Goal!");
+                throw new IllegalArgumentException("Metric with code '" + trimmedCode + "' already exists for year " + targetYear + "!");
             }
         }
 
