@@ -37,10 +37,13 @@ public class RankingQuestion {
     @JoinColumn(name = "parent_id")
     private RankingQuestion parent;
 
+    @NotNull
+    @Column(nullable = false)
+    private Integer year;
+
     @Column(nullable = false)
     private String code;
 
-    // Diubah menjadi TEXT agar judul/indikator bisa panjang tanpa batas 255 karakter
     @Column(columnDefinition = "TEXT", nullable = false)
     private String title;
 

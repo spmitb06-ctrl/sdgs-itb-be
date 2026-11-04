@@ -15,10 +15,11 @@ public class RankingQuestionDTO {
     private Long goalId;
     private Integer goalNumber;
     private Long parentId;
+    private Integer year; // Field tahun metrik
     private String code;
     private String title;
-    private String content; // Konten tiap level (1, 2, atau 3)
+    private String content;
     private Integer level;
     private List<RankingQuestionDTO> children;
-    private RankingSubmissionDTO submission; // Menampung submission tahun terpilih saat get detail
+    private RankingSubmissionDTO submission;
 }

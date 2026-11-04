@@ -15,34 +15,41 @@ public interface RankingQuestionRepository extends JpaRepository<RankingQuestion
         WHERE q.rankingSystem.id = :systemId
           AND q.goal.id = :goalId
           AND q.level = 1
+          AND (:year IS NULL OR q.year = :year)
           AND q.deletedAt IS NULL
         ORDER BY q.code ASC
     """)
-    List<RankingQuestion> findRootQuestionsBySystemAndGoal(
+    List<RankingQuestion> findRootQuestionsBySystemAndGoalAndYear(
             @Param("systemId") Long systemId,
-            @Param("goalId") Long goalId
+            @Param("goalId") Long goalId,
+            @Param("year") Integer year
     );
 
     @Query("""
         SELECT q FROM RankingQuestion q
         WHERE q.rankingSystem.id = :systemId
           AND q.level = 1
+          AND (:year IS NULL OR q.year = :year)
           AND q.deletedAt IS NULL
         ORDER BY q.code ASC
     """)
-    List<RankingQuestion> findAllRootQuestionsBySystem(@Param("systemId") Long systemId);
+    List<RankingQuestion> findAllRootQuestionsBySystemAndYear(
+            @Param("systemId") Long systemId,
+            @Param("year") Integer year
+    );
 
-    // Cek duplikasi kode saat create
-    boolean existsByRankingSystemIdAndGoalIdAndCodeAndDeletedAtIsNull(
+    // Cek duplikasi kode spesifik pada Sistem, Goal, dan Tahun yang sama
+    boolean existsByRankingSystemIdAndGoalIdAndYearAndCodeAndDeletedAtIsNull(
             Long rankingSystemId,
             Long goalId,
+            Integer year,
             String code
     );
 
-    // Cek duplikasi kode saat update (mengecualikan ID diri sendiri)
-    boolean existsByRankingSystemIdAndGoalIdAndCodeAndIdNotAndDeletedAtIsNull(
+    boolean existsByRankingSystemIdAndGoalIdAndYearAndCodeAndIdNotAndDeletedAtIsNull(
             Long rankingSystemId,
             Long goalId,
+            Integer year,
             String code,
             Long id
     );
